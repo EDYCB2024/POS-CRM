@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    body { font-family: 'Inter', sans-serif; }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "inverse-primary": "#b4c5ff",
+                  "surface-container-lowest": "#ffffff",
+                  "surface-container-highest": "#d3e4fe",
+                  "error": "#ba1a1a",
+                  "on-surface-variant": "#434655",
+                  "tertiary-fixed": "#ffdbcd",
+                  "tertiary-fixed-dim": "#ffb596",
+                  "secondary-container": "#dae2fd",
+                  "secondary-fixed-dim": "#bec6e0",
+                  "on-tertiary-fixed": "#360f00",
+                  "primary-fixed": "#dbe1ff",
+                  "tertiary-container": "#bc4800",
+                  "outline": "#737686",
+                  "on-secondary-fixed-variant": "#3f465c",
+                  "on-background": "#0b1c30",
+                  "inverse-on-surface": "#eaf1ff",
+                  "surface-container-low": "#eff4ff",
+                  "on-primary-fixed": "#00174b",
+                  "surface-tint": "#0053db",
+                  "primary-container": "#2563eb",
+                  "surface": "#f8f9ff",
+                  "primary-fixed-dim": "#b4c5ff",
+                  "on-secondary-fixed": "#131b2e",
+                  "surface-variant": "#d3e4fe",
+                  "secondary": "#565e74",
+                  "on-tertiary": "#ffffff",
+                  "tertiary": "#943700",
+                  "inverse-surface": "#213145",
+                  "primary": "#004ac6",
+                  "on-surface": "#0b1c30",
+                  "on-primary": "#ffffff",
+                  "on-error": "#ffffff",
+                  "error-container": "#ffdad6",
+                  "background": "#f8f9ff",
+                  "on-secondary": "#ffffff",
+                  "on-primary-container": "#eeefff",
+                  "surface-container-high": "#dce9ff",
+                  "on-primary-fixed-variant": "#003ea8",
+                  "surface-bright": "#f8f9ff",
+                  "on-tertiary-container": "#ffede6",
+                  "surface-dim": "#cbdbf5",
+                  "secondary-fixed": "#dae2fd",
+                  "outline-variant": "#c3c6d7",
+                  "on-error-container": "#93000a",
+                  "on-secondary-container": "#5c647a",
+                  "surface-container": "#e5eeff",
+                  "on-tertiary-fixed-variant": "#7d2d00"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "spacing": {
+                  "sm": "8px",
+                  "xl": "32px",
+                  "xs": "4px",
+                  "md": "16px",
+                  "lg": "24px",
+                  "base": "4px",
+                  "margin": "40px",
+                  "gutter": "20px"
+          },
+          "fontFamily": {
+                  "h3": ["Inter"],
+                  "display": ["Inter"],
+                  "body-lg": ["Inter"],
+                  "label-md": ["Inter"],
+                  "h1": ["Inter"],
+                  "label-sm": ["Inter"],
+                  "h2": ["Inter"],
+                  "body-md": ["Inter"]
+          },
+          "fontSize": {
+                  "h3": ["20px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                  "display": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                  "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                  "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                  "h1": ["30px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                  "label-sm": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                  "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                  "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background text-on-background">
+<aside class="fixed left-0 top-0 h-screen w-64 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col h-full p-4 gap-2 z-40">
+<div class="mb-lg px-2">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+</div>
+<div>
+<h2 class="text-xl font-black tracking-tight text-blue-600 dark:text-blue-400">POS Manager</h2>
+<p class="text-label-sm text-secondary uppercase tracking-widest">Enterprise</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-md px-md py-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+        Dashboard
+      </a>
+<a class="flex items-center gap-md px-md py-sm bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+        Terminals
+      </a>
+<a class="flex items-center gap-md px-md py-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="bar_chart">bar_chart</span>
+        Analytics
+      </a>
+</nav>
+<div class="mt-auto border-t border-slate-200 dark:border-slate-800 pt-4 flex flex-col gap-1">
+<a class="flex items-center gap-md px-md py-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+        Support
+      </a>
+<a class="flex items-center gap-md px-md py-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+        Settings
+      </a>
+</div>
+</aside>
+<main class="ml-64 min-h-screen">
+<header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex justify-between items-center w-full px-6 py-3 sticky top-0 z-30">
+<div class="flex items-center gap-lg">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm w-80 focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Search terminals..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-slate-200 dark:border-slate-800 mx-2"></div>
+<div class="flex items-center gap-sm cursor-pointer group">
+<div class="text-right hidden sm:block">
+<p class="text-sm font-semibold text-slate-900 dark:text-white leading-none">Alex Rivera</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Admin</p>
+</div>
+<img alt="User Avatar" class="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700" data-alt="A professional headshot of a young male administrator with a confident expression, set against a blurred office background. The lighting is soft and natural, emphasizing a clean and professional aesthetic that fits a modern, light-themed business application. The color palette is dominated by neutral tones and soft blues." src="https://lh3.googleusercontent.com/aida-public/AB6AXuADycCMNzBTY4c0FQO-WdXlIzbT_D0I6WQTG3IdQELojoz_bNIw04WOVRaafVQNjjV-XqPa4dhcBVJ2lh8RA8-msSL7CQcKo1FQpBVds5vRJto8dayzAIMfyFJtzknAJ-XGjqLv3UMujHvz8byVUPtVa_uzbVaB_3qakkBdcMbidgkyIuqaWFjLS-cL_S8anfwHfBF5TdEVp2Kju9XIlwLwuGg5Tj7gPrP4egV61jWuGz9oIwGwT52Twb0GE402WX68d92GnHwPauM"/>
+</div>
+</div>
+</header>
+<section class="p-margin">
+<div class="mb-xl flex justify-between items-end">
+<div>
+<h1 class="font-h1 text-h1 text-on-background mb-xs">Terminal Management</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Monitor and manage all active POS terminals across locations.</p>
+</div>
+<button class="flex items-center gap-sm bg-primary text-on-primary px-lg py-md rounded-xl font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+          Add New Terminal
+        </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant">
+<div class="flex justify-between items-start mb-md">
+<div class="p-sm bg-secondary-container rounded-lg">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="devices">devices</span>
+</div>
+<span class="text-label-sm text-primary font-bold uppercase tracking-wider">+12%</span>
+</div>
+<p class="text-label-md text-on-surface-variant mb-xs">Total Terminals</p>
+<h3 class="text-h1 font-h1">142</h3>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant">
+<div class="flex justify-between items-start mb-md">
+<div class="p-sm bg-green-100 rounded-lg">
+<span class="material-symbols-outlined text-green-700" data-icon="check_circle">check_circle</span>
+</div>
+<span class="text-label-sm text-green-600 font-bold uppercase tracking-wider">Stable</span>
+</div>
+<p class="text-label-md text-on-surface-variant mb-xs">Active Online</p>
+<h3 class="text-h1 font-h1">138</h3>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant">
+<div class="flex justify-between items-start mb-md">
+<div class="p-sm bg-red-100 rounded-lg">
+<span class="material-symbols-outlined text-red-700" data-icon="error_outline">error_outline</span>
+</div>
+<span class="text-label-sm text-red-600 font-bold uppercase tracking-wider">Critical</span>
+</div>
+<p class="text-label-md text-on-surface-variant mb-xs">Offline Alerts</p>
+<h3 class="text-h1 font-h1">4</h3>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
+<div class="px-lg py-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<div class="flex gap-md">
+<button class="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-slate-50 transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="filter_list">filter_list</span>
+              Filter
+            </button>
+<button class="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-slate-50 transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="sort">sort</span>
+              Sort
+            </button>
+</div>
+<div class="flex items-center gap-sm">
+<p class="text-label-sm text-on-surface-variant">Showing 1-10 of 142</p>
+<div class="flex border border-outline-variant rounded-lg overflow-hidden">
+<button class="p-xs bg-white hover:bg-slate-50 border-r border-outline-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="p-xs bg-white hover:bg-slate-50">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Terminal ID</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Location</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Status</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Last Sync</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-slate-50/50 transition-colors group">
+<td class="px-lg py-md">
+<p class="font-semibold text-primary">TRM-9921</p>
+<p class="text-xs text-on-surface-variant">V3.2.1 Stable</p>
+</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-slate-400 text-[18px]" data-icon="location_on">location_on</span>
+<span class="text-body-md">Main Street Plaza - Store 4</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="inline-flex items-center px-sm py-xs rounded-full bg-green-50 text-green-700 text-label-sm font-bold border border-green-200">
+<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                  Online
+                </div>
+</td>
+<td class="px-lg py-md font-body-md">2 mins ago</td>
+<td class="px-lg py-md text-right">
+<button class="p-sm hover:bg-slate-100 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors group">
+<td class="px-lg py-md">
+<p class="font-semibold text-primary">TRM-8440</p>
+<p class="text-xs text-on-surface-variant">V3.2.1 Stable</p>
+</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-slate-400 text-[18px]" data-icon="location_on">location_on</span>
+<span class="text-body-md">Grand Central Terminal - Kiosk B</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="inline-flex items-center px-sm py-xs rounded-full bg-green-50 text-green-700 text-label-sm font-bold border border-green-200">
+<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                  Online
+                </div>
+</td>
+<td class="px-lg py-md font-body-md">Just now</td>
+<td class="px-lg py-md text-right">
+<button class="p-sm hover:bg-slate-100 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors group">
+<td class="px-lg py-md">
+<p class="font-semibold text-primary">TRM-7102</p>
+<p class="text-xs text-on-surface-variant">V3.1.9 Legacy</p>
+</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-slate-400 text-[18px]" data-icon="location_on">location_on</span>
+<span class="text-body-md">Airport West - Gate 12</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="inline-flex items-center px-sm py-xs rounded-full bg-red-50 text-red-700 text-label-sm font-bold border border-red-200">
+<span class="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
+                  Offline
+                </div>
+</td>
+<td class="px-lg py-md font-body-md text-error font-medium">42 mins ago</td>
+<td class="px-lg py-md text-right">
+<button class="p-sm hover:bg-slate-100 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors group">
+<td class="px-lg py-md">
+<p class="font-semibold text-primary">TRM-2239</p>
+<p class="text-xs text-on-surface-variant">V3.2.1 Stable</p>
+</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-slate-400 text-[18px]" data-icon="location_on">location_on</span>
+<span class="text-body-md">Downtown Hub - Entrance</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="inline-flex items-center px-sm py-xs rounded-full bg-green-50 text-green-700 text-label-sm font-bold border border-green-200">
+<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                  Online
+                </div>
+</td>
+<td class="px-lg py-md font-body-md">15 mins ago</td>
+<td class="px-lg py-md text-right">
+<button class="p-sm hover:bg-slate-100 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors group">
+<td class="px-lg py-md">
+<p class="font-semibold text-primary">TRM-5501</p>
+<p class="text-xs text-on-surface-variant">V3.2.1 Stable</p>
+</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-slate-400 text-[18px]" data-icon="location_on">location_on</span>
+<span class="text-body-md">Eastside Market - Aisle 3</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="inline-flex items-center px-sm py-xs rounded-full bg-slate-100 text-slate-600 text-label-sm font-bold border border-slate-200">
+<span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span>
+                  Maintenance
+                </div>
+</td>
+<td class="px-lg py-md font-body-md">2 hours ago</td>
+<td class="px-lg py-md text-right">
+<button class="p-sm hover:bg-slate-100 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="mt-xl grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant">
+<h3 class="font-h3 text-h3 mb-md">Quick Map View</h3>
+<div class="h-64 bg-slate-100 rounded-lg relative overflow-hidden">
+<img alt="Map View" class="w-full h-full object-cover grayscale opacity-60" data-alt="A stylized, minimalist digital map of a metropolitan city center with clean geometric lines and soft blue highlighting on key intersections. The map is presented in a modern light-mode theme, with subtle markers indicating terminal locations. The lighting is even and high-key, emphasizing a data-focused and professional interface design." data-location="New York" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIh2aCS0jcUbSCI6mg7EAVzEBhyN8xA5Q0PLTLytYC_cSNyvkFwaZaH8dyONHfQNZoLMmmXygJXKH6ZJpgX82DAGwoTGq2jNV3XakCznvIUkuLIWkpA0-abjc3koAjABgW_JIeQZUTHarLQijlMmz9J4ZCuF4sK4k7gLpdLtv4IpmRCWsQQyIZFkwFskIt2gPLSmGY4FQo82Z3thv3jEnVLfDwEJ5GYmXoULB08uO6bZVVTzbVHH1iNArGng5tG8yXIaR9U9dvNxo"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="bg-white px-md py-sm rounded-full shadow-lg flex items-center gap-sm border border-slate-200">
+<span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+<span class="text-label-md font-bold text-slate-900">4 Offline Alerts Detected</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant">
+<h3 class="font-h3 text-h3 mb-md">System Health Activity</h3>
+<div class="space-y-md">
+<div class="flex gap-md">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] text-blue-600" data-icon="update">update</span>
+</div>
+<div class="absolute top-8 left-4 w-px h-full bg-slate-200"></div>
+</div>
+<div>
+<p class="text-body-md font-semibold">Bulk firmware update completed</p>
+<p class="text-label-sm text-on-surface-variant">Successfully updated 124 terminals to V3.2.1</p>
+<p class="text-label-sm text-slate-400 mt-xs">10:45 AM Today</p>
+</div>
+</div>
+<div class="flex gap-md">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] text-red-600" data-icon="report">report</span>
+</div>
+<div class="absolute top-8 left-4 w-px h-full bg-slate-200"></div>
+</div>
+<div>
+<p class="text-body-md font-semibold">Connection Lost: TRM-7102</p>
+<p class="text-label-sm text-on-surface-variant">Airport West - Gate 12 lost heartbeat signal</p>
+<p class="text-label-sm text-slate-400 mt-xs">09:12 AM Today</p>
+</div>
+</div>
+<div class="flex gap-md">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] text-green-600" data-icon="add_business">add_business</span>
+</div>
+</div>
+<div>
+<p class="text-body-md font-semibold">New Terminal Registered</p>
+<p class="text-label-sm text-on-surface-variant">TRM-8440 activated at Grand Central Terminal</p>
+<p class="text-label-sm text-slate-400 mt-xs">Yesterday, 04:30 PM</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>
