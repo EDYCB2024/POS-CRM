@@ -9,7 +9,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-surface-container-lowest">
       <Sidebar />
-      <main className={`flex-1 flex flex-col min-h-screen relative transition-all duration-300 ease-in-out ${isOpen ? 'ml-80' : 'ml-0'}`}>
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen relative transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'ml-80' : 'ml-0'}`}>
         {children}
       </main>
     </div>

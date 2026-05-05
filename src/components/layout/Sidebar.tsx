@@ -7,6 +7,7 @@ import {
   LayoutDashboard, 
   Monitor, 
   BarChart3, 
+  Database,
   Settings, 
   HelpCircle, 
   ChevronDown, 
@@ -32,6 +33,11 @@ const aliados = [
   'DEL SUR', 'PAYTECH'
 ]
 
+const dataCenter = [
+  { name: 'BD Clientes', href: '/datacenter/clientes', icon: Users },
+  { name: 'BD PLATCO', href: '/datacenter/platco', icon: Building2 },
+]
+
 const otros = [
   'BANCRECER', 'BESTPAY'
 ]
@@ -45,6 +51,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const [isAliadosOpen, setIsAliadosOpen] = useState(true)
+  const [isDataCenterOpen, setIsDataCenterOpen] = useState(false)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
 
   return (
@@ -148,6 +155,41 @@ export function Sidebar() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Data Center Section */}
+          <div className="pt-4 mt-2">
+            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Systems</div>
+            <button
+              onClick={() => setIsDataCenterOpen(!isDataCenterOpen)}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                isDataCenterOpen
+                  ? "bg-secondary-container/30 text-primary border border-primary/10"
+                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Database className={cn("w-5 h-5", isDataCenterOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
+                <span>Data Center</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isDataCenterOpen ? "rotate-180" : "")} />
+            </button>
+
+            {isDataCenterOpen && (
+              <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
+                {dataCenter.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
+                  >
+                    <item.icon className="w-3.5 h-3.5 text-on-surface-variant/40" />
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>

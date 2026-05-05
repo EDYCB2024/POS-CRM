@@ -14,15 +14,7 @@ export function TopBar({ title }: TopBarProps) {
       </div>
       
       <div className="flex items-center gap-4">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
-          <input 
-            className="pl-10 pr-4 py-1.5 bg-surface-container-low border-none rounded-full text-body-md focus:ring-2 focus:ring-primary w-64 transition-all" 
-            placeholder="Search data..." 
-            type="text"
-          />
-        </div>
-        
+        {/* Global search removed */}
         <div className="flex items-center gap-2">
           <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors active:opacity-80">
             <Bell className="w-5 h-5" />
