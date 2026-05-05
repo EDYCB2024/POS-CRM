@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
+
 import { supabase } from '@/lib/supabase'
 import { TopBar } from '@/components/layout/TopBar'
 import { 
@@ -19,9 +21,13 @@ import {
   Building2,
   Download,
   CloudUpload,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import { FilterDropdown } from "@/components/ui/FilterDropdown"
+import { ShieldCheck, ShieldX } from 'lucide-react'
+
 export default function AllyPage() {
   const { slug } = useParams()
   const [data, setData] = useState<any[]>([])
@@ -34,6 +40,7 @@ export default function AllyPage() {
   const [filterLote, setFilterLote] = useState('')
   const [filterMes, setFilterMes] = useState('')
   const [filterEstatus, setFilterEstatus] = useState('')
+  const [filterGarantia, setFilterGarantia] = useState('')
   const pageSize = 10
 
   const toggleSelectAll = () => {
@@ -100,6 +107,7 @@ export default function AllyPage() {
           query = query.ilike(loteCol, `%${filterLote}%`)
         }
         if (filterEstatus) query = query.ilike('estatus', `%${filterEstatus}%`)
+        if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
         if (filterMes) {
           // Asumiendo formato DD/MM/YYYY en la base de datos
           query = query.ilike('fecha', `%/${filterMes}/%`)
@@ -132,7 +140,7 @@ export default function AllyPage() {
     }
 
     fetchData()
-  }, [slug, page, filterLote, filterMes, filterEstatus])
+  }, [slug, page, filterLote, filterMes, filterEstatus, filterGarantia])
 
   const headers = columns.length > 0 ? columns : []
 
@@ -173,6 +181,19 @@ export default function AllyPage() {
       return <span className="font-mono text-[11px] font-bold text-primary">{stringValue}</span>
     }
 
+    if (header.toLowerCase().includes('garantia')) {
+      const isSi = stringValue.toLowerCase() === 'si'
+      return (
+        <div className={cn(
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter border",
+          isSi ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200 opacity-60"
+        )}>
+          {isSi ? <ShieldCheck className="w-2.5 h-2.5" /> : <ShieldX className="w-2.5 h-2.5" />}
+          {stringValue}
+        </div>
+      )
+    }
+
     return <span className="text-[11px] text-on-surface truncate max-w-[150px] block" title={stringValue}>{stringValue}</span>
   }
 
@@ -197,11 +218,14 @@ export default function AllyPage() {
               <CloudUpload className="w-4 h-4" />
               Subir Cambios
             </button>
-            <button className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 shadow-lg shadow-primary/20 transition-all">
-              <Plus className="w-4 h-4" />
-              Añadir Equipo
-            </button>
           </div>
+        </div>
+
+        <div className="mb-4 flex justify-end">
+          <button className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 shadow-lg shadow-primary/20 transition-all">
+            <Plus className="w-4 h-4" />
+            Añadir Equipo
+          </button>
         </div>
 
         {/* Filtros */}
@@ -246,12 +270,36 @@ export default function AllyPage() {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Garantía</label>
+            <FilterDropdown 
+              label="Filtro"
+              currentValue={filterGarantia}
+              onSelect={setFilterGarantia}
+              options={[
+                { label: "Si", value: "si", icon: ShieldCheck },
+                { label: "No", value: "no", icon: ShieldX }
+              ]}
+            />
+          </div>
+
           <button 
-            onClick={() => { setFilterLote(''); setFilterMes(''); setFilterEstatus(''); }}
-            className="mt-5 text-[10px] font-black uppercase text-primary hover:underline"
+            onClick={() => { setFilterLote(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); }}
+            className="mt-5 text-[10px] font-black uppercase text-on-surface-variant hover:text-primary transition-colors"
           >
             Limpiar Filtros
           </button>
+
+          <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
+
+          <Link 
+            href={`/seriales?slug=${slug}&lote=${filterLote}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}&loteCol=${columns.includes('lote') ? 'lote' : 'categoria'}`}
+            target="_blank"
+            className="mt-5 flex items-center gap-2 bg-primary text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-md shadow-primary/20"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Ver Seriales Filtrados
+          </Link>
         </div>
 
         {selectedIds.length > 0 && (

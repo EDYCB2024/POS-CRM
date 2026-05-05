@@ -1,4 +1,7 @@
+'use client'
+
 import { TopBar } from "@/components/layout/TopBar";
+
 import { 
   Monitor, 
   CheckCircle, 
@@ -15,6 +18,10 @@ import {
   Store
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { FilterDropdown } from "@/components/ui/FilterDropdown";
+import { ShieldCheck, ShieldX } from 'lucide-react';
+
 
 const stats = [
   { label: "Total Terminals", value: "142", change: "+12%", color: "bg-secondary-container", icon: Monitor, iconColor: "text-on-secondary-container" },
@@ -23,14 +30,16 @@ const stats = [
 ];
 
 const terminals = [
-  { id: "TRM-9921", version: "V3.2.1 Stable", location: "Main Street Plaza - Store 4", status: "Online", lastSync: "2 mins ago" },
-  { id: "TRM-8440", version: "V3.2.1 Stable", location: "Grand Central Terminal - Kiosk B", status: "Online", lastSync: "Just now" },
-  { id: "TRM-7102", version: "V3.1.9 Legacy", location: "Airport West - Gate 12", status: "Offline", lastSync: "42 mins ago" },
-  { id: "TRM-2239", version: "V3.2.1 Stable", location: "Downtown Hub - Entrance", status: "Online", lastSync: "15 mins ago" },
-  { id: "TRM-5501", version: "V3.2.1 Stable", location: "Eastside Market - Aisle 3", status: "Maintenance", lastSync: "2 hours ago" },
+  { id: "TRM-9921", version: "V3.2.1 Stable", location: "Main Street Plaza - Store 4", status: "Online", lastSync: "2 mins ago", warranty: "si" },
+  { id: "TRM-8440", version: "V3.2.1 Stable", location: "Grand Central Terminal - Kiosk B", status: "Online", lastSync: "Just now", warranty: "si" },
+  { id: "TRM-7102", version: "V3.1.9 Legacy", location: "Airport West - Gate 12", status: "Offline", lastSync: "42 mins ago", warranty: "no" },
+  { id: "TRM-2239", version: "V3.2.1 Stable", location: "Downtown Hub - Entrance", status: "Online", lastSync: "15 mins ago", warranty: "si" },
+  { id: "TRM-5501", version: "V3.2.1 Stable", location: "Eastside Market - Aisle 3", status: "Maintenance", lastSync: "2 hours ago", warranty: "no" },
 ];
 
 export default function TerminalsPage() {
+  const [warrantyFilter, setWarrantyFilter] = useState<string>('');
+
   return (
     <>
       <TopBar title="Terminal Management" />
@@ -66,12 +75,21 @@ export default function TerminalsPage() {
         {/* Terminal Table */}
         <div className="bg-white rounded-xl border border-outline-variant overflow-hidden">
           <div className="px-lg py-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
-            <div className="flex gap-md">
-              <button className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors">
+            <div className="flex gap-md items-center">
+              <FilterDropdown 
+                label="Garantía"
+                currentValue={warrantyFilter}
+                onSelect={setWarrantyFilter}
+                options={[
+                  { label: "Si", value: "si", icon: ShieldCheck },
+                  { label: "No", value: "no", icon: ShieldX }
+                ]}
+              />
+              <button className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]">
                 <Filter className="w-4 h-4" />
-                Filter
+                Otros Filtros
               </button>
-              <button className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors">
+              <button className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]">
                 <ArrowUpDown className="w-4 h-4" />
                 Sort
               </button>
@@ -95,6 +113,7 @@ export default function TerminalsPage() {
                 <th className="px-lg py-md text-label-md text-on-surface-variant">Terminal ID</th>
                 <th className="px-lg py-md text-label-md text-on-surface-variant">Location</th>
                 <th className="px-lg py-md text-label-md text-on-surface-variant">Status</th>
+                <th className="px-lg py-md text-label-md text-on-surface-variant">Garantía</th>
                 <th className="px-lg py-md text-label-md text-on-surface-variant">Last Sync</th>
                 <th className="px-lg py-md text-label-md text-on-surface-variant text-right">Actions</th>
               </tr>
@@ -127,6 +146,19 @@ export default function TerminalsPage() {
                       )}></span>
                       {terminal.status}
                     </div>
+                  </td>
+                  <td className="px-lg py-md">
+                    {terminal.warranty === 'si' ? (
+                      <span className="flex items-center gap-1 text-[10px] font-black text-green-600 uppercase tracking-tight">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Vigente
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase tracking-tight opacity-60">
+                        <ShieldX className="w-3.5 h-3.5" />
+                        Vencida
+                      </span>
+                    )}
                   </td>
                   <td className={cn(
                     "px-lg py-md text-body-md",

@@ -3,6 +3,10 @@
 import { TopBar } from "@/components/layout/TopBar";
 import { Users, Search, Filter, Plus, MoreVertical, Mail, Phone, MapPin } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { FilterDropdown } from "@/components/ui/FilterDropdown";
+import { ShieldCheck, ShieldX } from 'lucide-react';
+
 
 const clients = [
   { id: "CL-001", name: "Inversiones Laury", rif: "J080066227", email: "contacto@laury.com", phone: "0412-5556677", location: "Caracas, DC", status: "Active" },
@@ -12,6 +16,8 @@ const clients = [
 ];
 
 export default function ClientsPage() {
+  const [warrantyFilter, setWarrantyFilter] = useState<string>('');
+
   return (
     <>
       <TopBar title="BD Clientes" />
@@ -42,10 +48,19 @@ export default function ClientsPage() {
                 className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               />
             </div>
-            <div className="flex gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-white transition-all uppercase tracking-wider">
+            <div className="flex gap-3 items-center">
+              <FilterDropdown 
+                label="Garantía"
+                currentValue={warrantyFilter}
+                onSelect={setWarrantyFilter}
+                options={[
+                  { label: "Si", value: "si", icon: ShieldCheck },
+                  { label: "No", value: "no", icon: ShieldX }
+                ]}
+              />
+              <button className="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-xl text-[10px] font-bold hover:bg-white transition-all uppercase tracking-wider">
                 <Filter className="w-3.5 h-3.5" />
-                Filtros
+                Otros Filtros
               </button>
             </div>
           </div>
