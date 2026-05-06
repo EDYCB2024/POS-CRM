@@ -14,7 +14,8 @@ import {
   User, 
   Info,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  Monitor
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
