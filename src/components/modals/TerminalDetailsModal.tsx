@@ -38,7 +38,7 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
       setLoading(true)
       try {
         const tables = [
-          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 
+          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 'platco_pos',
           'exterior', 'bancaribe', 'tokenp', 'bactivo', 
           'poscom', 'paytech', 'bestpay', 'bancrecer'
         ]

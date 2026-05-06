@@ -28,7 +28,7 @@ const navigation = [
 ]
 
 const aliados = [
-  'VATC', 'PLATCO', 'BANPLUS', 'CCR', 'INSTAPAGO', 'POS COMERCIAL',
+  'VATC', 'PLATCO', 'PLATCO POS', 'BANPLUS', 'CCR', 'INSTAPAGO', 'POS COMERCIAL',
   'EXTERIOR', 'BANCARIBE', 'TOKEN PAGOS', 'BANCO ACTIVO',
   'DEL SUR', 'PAYTECH'
 ]

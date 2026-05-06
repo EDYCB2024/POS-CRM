@@ -20,7 +20,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
 
   useEffect(() => {
     async function fetchData() {
-      const { slug, lote, mes, estatus, garantia, loteCol } = params
+      const { slug, lote, mes, estatus, garantia, loteCol, serial } = params
       if (!slug) return
 
       try {
@@ -37,6 +37,9 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
         if (estatus) query = query.ilike('estatus', `%${estatus}%`)
         if (garantia) query = query.ilike('garantia', `%${garantia}%`)
         if (mes) query = query.ilike('fecha', `%/${mes}/%`)
+        if (serial) {
+          query = query.or(`serial.ilike.%${serial}%,serial_de_remplazo.ilike.%${serial}%`)
+        }
 
         const { data: tableData, error } = await query.order('fecha', { ascending: false })
 

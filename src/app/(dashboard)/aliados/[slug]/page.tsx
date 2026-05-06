@@ -42,6 +42,7 @@ export default function AllyPage() {
   const [filterMes, setFilterMes] = useState('')
   const [filterEstatus, setFilterEstatus] = useState('')
   const [filterGarantia, setFilterGarantia] = useState('')
+  const [filterSerial, setFilterSerial] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSerial, setSelectedSerial] = useState('')
   const pageSize = 10
@@ -115,6 +116,9 @@ export default function AllyPage() {
           // Asumiendo formato DD/MM/YYYY en la base de datos
           query = query.ilike('fecha', `%/${filterMes}/%`)
         }
+        if (filterSerial) {
+          query = query.or(`serial.ilike.%${filterSerial}%,serial_de_remplazo.ilike.%${filterSerial}%`)
+        }
 
         const { data: tableData, error: dbError, count } = await query
           .order('fecha', { ascending: false })
@@ -143,7 +147,7 @@ export default function AllyPage() {
     }
 
     fetchData()
-  }, [slug, page, filterLote, filterMes, filterEstatus, filterGarantia])
+  }, [slug, page, filterLote, filterMes, filterEstatus, filterGarantia, filterSerial])
 
   const headers = columns.length > 0 ? columns : []
 
@@ -245,6 +249,17 @@ export default function AllyPage() {
           </div>
 
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Serial</label>
+            <input 
+              type="text" 
+              placeholder="Ej: N910..."
+              value={filterSerial}
+              onChange={(e) => setFilterSerial(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Mes</label>
             <select 
               value={filterMes}
@@ -287,7 +302,7 @@ export default function AllyPage() {
           </div>
 
           <button 
-            onClick={() => { setFilterLote(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); }}
+            onClick={() => { setFilterLote(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); setFilterSerial(''); }}
             className="mt-5 text-[10px] font-black uppercase text-on-surface-variant hover:text-primary transition-colors"
           >
             Limpiar Filtros
@@ -296,7 +311,7 @@ export default function AllyPage() {
           <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
 
           <Link 
-            href={`/seriales?slug=${slug}&lote=${filterLote}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}&loteCol=${columns.includes('lote') ? 'lote' : 'categoria'}`}
+            href={`/seriales?slug=${slug}&lote=${filterLote}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}&serial=${filterSerial}&loteCol=${columns.includes('lote') ? 'lote' : 'categoria'}`}
             target="_blank"
             className="mt-5 flex items-center gap-2 bg-primary text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-md shadow-primary/20"
           >
