@@ -95,7 +95,7 @@ export default function TerminalsPage() {
               </button>
             </div>
             <div className="flex items-center gap-sm">
-              <p className="text-label-sm text-on-surface-variant">Showing 1-10 of 142</p>
+              <p className="text-label-sm text-on-surface-variant">Showing 1-20 of 142</p>
               <div className="flex border border-outline-variant rounded-lg overflow-hidden">
                 <button className="p-1 bg-white hover:bg-surface-container border-r border-outline-variant">
                   <ChevronLeft className="w-4 h-4" />

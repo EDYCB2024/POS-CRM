@@ -3,7 +3,7 @@
 import { TopBar } from "@/components/layout/TopBar";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Building2, Settings2, ShieldCheck, Box, Tag, Calendar, AlertTriangle, Search, Loader2 } from 'lucide-react';
+import { Building2, Settings2, ShieldCheck, Box, Tag, Calendar, AlertTriangle, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 const technicalStats = [
@@ -19,18 +19,28 @@ export default function BdPlatcoPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
   const fetchData = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('bd_platco').select('*');
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase.from('bd_platco').select('*', { count: 'exact' });
       
       if (searchTerm) {
         query = query.or(`seriales.ilike.%${searchTerm}%,imei_1.ilike.%${searchTerm}%,imei_2.ilike.%${searchTerm}%`);
       }
       
-      const { data: platcoData, error } = await query.order('seriales');
+      const { data: platcoData, error, count } = await query
+        .order('seriales')
+        .range(from, to);
+
       if (error) throw error;
       setData(platcoData || []);
+      setTotalCount(count || 0);
     } catch (err) {
       console.error("Error fetching platco data:", err);
     } finally {
@@ -40,7 +50,7 @@ export default function BdPlatcoPage() {
 
   useEffect(() => {
     fetchData();
-  }, [searchTerm]);
+  }, [searchTerm, page]);
 
   return (
     <>
@@ -78,9 +88,31 @@ export default function BdPlatcoPage() {
                   type="text" 
                   placeholder="Buscar serial o IMEI..." 
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
                   className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+                Mostrando {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalCount)} de {totalCount}
+              </p>
+              <div className="flex border border-outline-variant rounded-md overflow-hidden bg-white">
+                <button 
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="p-1.5 hover:bg-surface-container border-r border-outline-variant disabled:opacity-30 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={(page + 1) * pageSize >= totalCount}
+                  className="p-1.5 hover:bg-surface-container disabled:opacity-30 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>

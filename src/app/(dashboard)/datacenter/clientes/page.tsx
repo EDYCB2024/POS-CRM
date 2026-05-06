@@ -1,7 +1,7 @@
 'use client'
 
 import { TopBar } from "@/components/layout/TopBar";
-import { Users, Search, Filter, Plus, MoreVertical, Mail, Phone, MapPin, Loader2 } from 'lucide-react';
+import { Users, Search, Filter, Plus, MoreVertical, Mail, Phone, MapPin, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { FilterDropdown } from "@/components/ui/FilterDropdown";
 import { ShieldCheck, ShieldX } from 'lucide-react';
@@ -15,20 +15,29 @@ export default function ClientsPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [warrantyFilter, setWarrantyFilter] = useState<string>('');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('bd_clientes').select('*');
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase.from('bd_clientes').select('*', { count: 'exact' });
       
       if (searchTerm) {
         query = query.or(`cliente.ilike.%${searchTerm}%,serial.ilike.%${searchTerm}%,razon.ilike.%${searchTerm}%`);
       }
       
-      const { data: clientsData, error } = await query.order('cliente');
+      const { data: clientsData, error, count } = await query
+        .order('cliente')
+        .range(from, to);
+
       if (error) throw error;
       setData(clientsData || []);
+      setTotalCount(count || 0);
     } catch (err) {
       console.error("Error fetching clients:", err);
     } finally {
@@ -38,7 +47,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [searchTerm]);
+  }, [searchTerm, page]);
 
   return (
     <>
@@ -75,9 +84,31 @@ export default function ClientsPage() {
                 type="text" 
                 placeholder="Buscar por cliente, serial o razón..." 
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
                 className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+                Mostrando {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalCount)} de {totalCount}
+              </p>
+              <div className="flex border border-outline-variant rounded-md overflow-hidden">
+                <button 
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="p-1.5 bg-white hover:bg-surface-container border-r border-outline-variant disabled:opacity-30 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={(page + 1) * pageSize >= totalCount}
+                  className="p-1.5 bg-white hover:bg-surface-container disabled:opacity-30 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 

@@ -45,7 +45,7 @@ export default function AllyPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSerial, setSelectedSerial] = useState('')
-  const pageSize = 10
+  const pageSize = 20
 
   const toggleSelectAll = () => {
     if (selectedIds.length === data.length) {
