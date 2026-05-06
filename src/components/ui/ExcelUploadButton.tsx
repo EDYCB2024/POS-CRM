@@ -16,6 +16,7 @@ interface ExcelUploadButtonProps {
 export function ExcelUploadButton({ tableName, onUploadComplete, label = "Importar Excel", className }: ExcelUploadButtonProps) {
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [uploadStatus, setUploadStatus] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -36,19 +37,83 @@ export function ExcelUploadButton({ tableName, onUploadComplete, label = "Import
         throw new Error("El archivo está vacío")
       }
 
-      // Preguntar si desea REEMPLAZAR o ADICIONAR (simplificado por ahora como reemplazo total si el usuario lo solicita)
-      const confirmReplace = window.confirm(`Se han detectado ${jsonData.length} registros. ¿Desea REEMPLAZAR toda la base de datos actual? (Cancelar para solo adicionar)`)
+      // Función para convertir fechas de Excel (números) a string legible
+      const formatExcelDate = (value: any) => {
+        if (!value) return '';
+        
+        // Si ya es un string con formato de fecha, lo dejamos igual
+        if (typeof value === 'string' && value.includes('/')) return value;
+        if (typeof value === 'string' && value.includes('-') && value.length > 7) return value;
+
+        // Si es un número (formato serial de Excel)
+        const num = Number(value);
+        if (!isNaN(num) && num > 30000 && num < 60000) {
+          try {
+            // Excel base date is 1899-12-30
+            const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+            return date.toLocaleDateString('es-VE', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+          } catch (e) {
+            return value.toString();
+          }
+        }
+        return value.toString();
+      };
+
+      // Normalizar datos: Convertir todas las llaves a minúsculas para coincidir con Postgres
+      const normalizedData = jsonData.map((row: any) => {
+        const newRow: any = {};
+        Object.keys(row).forEach(key => {
+          let normalizedKey = key.toLowerCase()
+            .replace(/\s+/g, '_')         // Espacios por guiones bajos
+            .replace(/[^a-z0-9_]/g, '')   // Quitar caracteres especiales
+          
+          // Corregir errores comunes (ej: fehca -> fecha)
+          if (normalizedKey === 'fehca') normalizedKey = 'fecha';
+          
+          // Mapeos específicos para casos comunes
+          let finalKey = normalizedKey;
+          if (normalizedKey === 'no') finalKey = 'no';
+          if (normalizedKey === 'seriales') finalKey = 'seriales';
+          if (normalizedKey === 'imei1') finalKey = 'imei_1';
+          if (normalizedKey === 'imei2') finalKey = 'imei_2';
+          if (normalizedKey === 'fecha_de_entrega' || normalizedKey === 'fechadeentrega') finalKey = 'fecha_de_entrega';
+          
+          // Formatear el valor si parece ser una fecha
+          let value = row[key];
+          if (finalKey.includes('fecha')) {
+            value = formatExcelDate(value);
+          }
+          
+          newRow[finalKey] = value;
+        });
+        return newRow;
+      });
+
+      console.log("Datos normalizados para subir:", normalizedData[0]);
+
+      // Preguntar si desea REEMPLAZAR o ADICIONAR
+      const confirmReplace = window.confirm(`Se han detectado ${normalizedData.length} registros. ¿Desea REEMPLAZAR toda la base de datos actual? (Aceptar para Reemplazar / Cancelar para Adicionar)`)
 
       if (confirmReplace) {
-        // Borrar datos actuales
-        const { error: deleteError } = await supabase.from(tableName).delete().neq('id', '00000000-0000-0000-0000-000000000000') // Borra todo
+        setUploadStatus('Borrando datos antiguos...')
+        const { error: deleteError } = await supabase
+          .from(tableName)
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000')
+        
         if (deleteError) throw deleteError
       }
 
-      // Insertar nuevos datos en lotes para evitar límites de payload
-      const batchSize = 100
-      for (let i = 0; i < jsonData.length; i += batchSize) {
-        const batch = jsonData.slice(i, i + batchSize)
+      setUploadStatus('Subiendo datos...')
+      
+      // Dividir en lotes de 100 para evitar saturar la red
+      const batchSize = 100;
+      for (let i = 0; i < normalizedData.length; i += batchSize) {
+        const batch = normalizedData.slice(i, i + batchSize);
         const { error: insertError } = await supabase.from(tableName).insert(batch)
         if (insertError) throw insertError
       }
@@ -99,7 +164,14 @@ export function ExcelUploadButton({ tableName, onUploadComplete, label = "Import
           <FileSpreadsheet className="w-5 h-5" />
         )}
         
-        {uploading ? "Procesando..." : status === 'success' ? "¡Completado!" : status === 'error' ? "Error" : label}
+        {uploading 
+          ? (uploadStatus || "Procesando...") 
+          : status === 'success' 
+            ? "¡Completado!" 
+            : status === 'error' 
+              ? "Error" 
+              : label
+        }
       </button>
 
       {status === 'error' && (
