@@ -8,12 +8,15 @@ import { Loader2, Copy, Check, ArrowLeft, List, ShieldCheck, ShieldX, Hash, Down
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import * as XLSX from 'xlsx'
+import { TerminalDetailsModal } from '@/components/modals/TerminalDetailsModal'
 
 export default function SerialesPage({ searchParams }: { searchParams: Promise<any> }) {
   const params = use(searchParams)
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedSerial, setSelectedSerial] = useState('')
 
   useEffect(() => {
     async function fetchData() {
@@ -188,7 +191,14 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
                   </thead>
                   <tbody className="divide-y divide-outline-variant">
                     {data.map((row, i) => (
-                      <tr key={i} className="hover:bg-primary/5 transition-colors group">
+                      <tr 
+                        key={i} 
+                        onClick={() => {
+                          setSelectedSerial(row.serial || row.serial_de_remplazo)
+                          setIsModalOpen(true)
+                        }}
+                        className="hover:bg-primary/5 transition-colors group cursor-pointer"
+                      >
                         <td className="px-6 py-3 text-[11px] font-bold text-on-surface-variant border-r border-outline-variant/10">{i + 1}</td>
                         <td className="px-6 py-3 text-[11px] text-on-surface-variant border-r border-outline-variant/10">
                           {row.fecha?.split('T')[0] || '-'}
@@ -255,6 +265,13 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
           </div>
         )}
       </div>
+
+      <TerminalDetailsModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        serial={selectedSerial}
+        currentSlug={params.slug || ''}
+      />
     </main>
   )
 }

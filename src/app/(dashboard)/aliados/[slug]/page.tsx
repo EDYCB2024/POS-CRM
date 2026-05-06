@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
 import { ShieldCheck, ShieldX } from 'lucide-react'
+import { TerminalDetailsModal } from '@/components/modals/TerminalDetailsModal'
 
 export default function AllyPage() {
   const { slug } = useParams()
@@ -41,6 +42,8 @@ export default function AllyPage() {
   const [filterMes, setFilterMes] = useState('')
   const [filterEstatus, setFilterEstatus] = useState('')
   const [filterGarantia, setFilterGarantia] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedSerial, setSelectedSerial] = useState('')
   const pageSize = 10
 
   const toggleSelectAll = () => {
@@ -396,8 +399,21 @@ export default function AllyPage() {
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
                   {data.length > 0 ? data.map((row, idx) => (
-                    <tr key={idx} className={cn("transition-colors group", selectedIds.includes(row.id) ? "bg-primary/10" : "hover:bg-primary/5")}>
-                      <td className="px-3 py-1.5 text-center border-r border-outline-variant/10">
+                    <tr 
+                      key={idx} 
+                      onClick={() => {
+                        setSelectedSerial(row.serial || row.serial_de_remplazo)
+                        setIsModalOpen(true)
+                      }}
+                      className={cn(
+                        "transition-colors group cursor-pointer", 
+                        selectedIds.includes(row.id) ? "bg-primary/10" : "hover:bg-primary/5"
+                      )}
+                    >
+                      <td 
+                        className="px-3 py-1.5 text-center border-r border-outline-variant/10"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input 
                           type="checkbox" 
                           checked={selectedIds.includes(row.id)}
@@ -410,7 +426,7 @@ export default function AllyPage() {
                           {renderCellContent(header, row[header])}
                         </td>
                       ))}
-                      <td className="px-3 py-1.5 text-right">
+                      <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <button className="p-1 hover:bg-surface-container rounded-md text-on-surface-variant transition-colors">
                           <MoreVertical className="w-3.5 h-3.5" />
                         </button>
@@ -437,6 +453,13 @@ export default function AllyPage() {
           </div>
         )}
       </section>
+
+      <TerminalDetailsModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        serial={selectedSerial}
+        currentSlug={slug?.toString() || ''}
+      />
     </main>
   )
 }
