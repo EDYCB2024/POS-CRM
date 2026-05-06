@@ -20,7 +20,7 @@ export default function ClientsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('clientes').select('*');
+      let query = supabase.from('bd_clientes').select('*');
       
       if (searchTerm) {
         query = query.or(`cliente.ilike.%${searchTerm}%,serial.ilike.%${searchTerm}%,razon.ilike.%${searchTerm}%`);
@@ -55,7 +55,7 @@ export default function ClientsPage() {
           </div>
           <div className="flex gap-3">
             <ExcelUploadButton 
-              tableName="clientes" 
+              tableName="bd_clientes" 
               onUploadComplete={fetchData} 
               label="Cargar Excel Clientes"
             />
@@ -121,7 +121,7 @@ export default function ClientsPage() {
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter border",
-                          item.status?.toLowerCase() === 'active' || item.estatus?.toLowerCase() === 'activo' 
+                          item.estatus?.toLowerCase() === 'activo' || item.status?.toLowerCase() === 'active'
                             ? "bg-green-50 text-green-700 border-green-200" 
                             : "bg-red-50 text-red-700 border-red-200"
                         )}>

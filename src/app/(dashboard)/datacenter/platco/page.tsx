@@ -19,17 +19,16 @@ export default function BdPlatcoPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-
   const fetchData = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('platco').select('*');
+      let query = supabase.from('bd_platco').select('*');
       
       if (searchTerm) {
-        query = query.or(`serial.ilike.%${searchTerm}%,imei_1.ilike.%${searchTerm}%,imei_2.ilike.%${searchTerm}%`);
+        query = query.or(`seriales.ilike.%${searchTerm}%,imei_1.ilike.%${searchTerm}%,imei_2.ilike.%${searchTerm}%`);
       }
       
-      const { data: platcoData, error } = await query.order('serial');
+      const { data: platcoData, error } = await query.order('seriales');
       if (error) throw error;
       setData(platcoData || []);
     } catch (err) {
@@ -42,6 +41,7 @@ export default function BdPlatcoPage() {
   useEffect(() => {
     fetchData();
   }, [searchTerm]);
+
   return (
     <>
       <TopBar title="Data Center - BD PLATCO" />
@@ -58,8 +58,9 @@ export default function BdPlatcoPage() {
             </div>
           </div>
           <ExcelUploadButton 
-            tableName="platco" 
+            tableName="bd_platco" 
             label="Actualizar BD Platco (Excel)"
+            onUploadComplete={fetchData}
           />
         </div>
 
@@ -104,12 +105,12 @@ export default function BdPlatcoPage() {
                 <tbody className="divide-y divide-outline-variant">
                   {data.length > 0 ? data.map((item, index) => (
                     <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
-                      <td className="px-8 py-4 text-xs font-bold text-outline">{(index + 1).toString().padStart(3, '0')}</td>
+                      <td className="px-8 py-4 text-xs font-bold text-outline">{item.no || (index + 1).toString().padStart(3, '0')}</td>
                       <td className="px-8 py-4">
-                        <p className="text-sm font-black text-primary font-mono">{item.serial}</p>
+                        <p className="text-sm font-black text-primary font-mono">{item.seriales}</p>
                       </td>
                       <td className="px-8 py-4 text-xs font-bold text-on-surface uppercase">
-                        {item.fecha_entrega || item.fecha?.split('T')[0] || '-'}
+                        {item.fecha_de_entrega || '-'}
                       </td>
                       <td className="px-8 py-4 text-xs font-medium text-on-surface-variant font-mono">
                         {item.imei_1 || '-'}
