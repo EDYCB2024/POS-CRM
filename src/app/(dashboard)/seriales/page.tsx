@@ -20,18 +20,28 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
 
   useEffect(() => {
     async function fetchData() {
-      const { slug, search, mes, estatus, garantia } = params
+      const { slug, search, mes, estatus, garantia, lote } = params
       if (!slug) return
 
       try {
         setLoading(true)
         const tableName = slug.replace(/-/g, '_')
         
+        // Determinar columnas según el aliado
+        let loteCol = 'categoria'
+        let nameCol = 'razon_social'
+        
+        if (slug === 'platco' || slug === 'platco-pos') loteCol = 'lote'
+        else if (['banplus', 'ccr', 'instapago'].includes(slug)) loteCol = 'categora'
+        
+        if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(slug)) nameCol = 'razn_social'
+
         let query = supabase
           .from(tableName)
           .select('*')
 
-        if (lote && loteCol) {
+        // Aplicar filtros específicos
+        if (lote) {
           query = query.ilike(loteCol, `%${lote}%`)
         }
         if (estatus) query = query.ilike('estatus', `%${estatus}%`)
@@ -39,22 +49,6 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
         if (mes) query = query.ilike('fecha', `%/${mes}/%`)
         
         if (search) {
-          const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
-          const possibleNameCols = ['razon_social', 'razn_social', 'cliente', 'comercio']
-          
-          // Como no tenemos las columnas aquí aún, usamos una lógica de OR amplia
-          // PostgreSQL ignorará columnas que no existan si usamos una sintaxis correcta, 
-          // pero Supabase-js fallará si la columna no existe.
-          // Para ser seguros, detectamos el slug.
-          
-          let loteCol = 'categoria'
-          let nameCol = 'razon_social'
-          
-          if (slug === 'platco' || slug === 'platco-pos') loteCol = 'lote'
-          else if (['banplus', 'ccr', 'instapago'].includes(slug)) loteCol = 'categora'
-          
-          if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(slug)) nameCol = 'razn_social'
-
           query = query.or(`${loteCol}.ilike.*${search}*,${nameCol}.ilike.*${search}*,serial.ilike.*${search}*,serial_de_remplazo.ilike.*${search}*`)
         }
 
