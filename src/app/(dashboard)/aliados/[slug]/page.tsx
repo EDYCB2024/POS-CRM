@@ -42,7 +42,7 @@ export default function AllyPage() {
   const [filterMes, setFilterMes] = useState('')
   const [filterEstatus, setFilterEstatus] = useState('')
   const [filterGarantia, setFilterGarantia] = useState('')
-  const [filterSerial, setFilterSerial] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSerial, setSelectedSerial] = useState('')
   const pageSize = 10
@@ -105,20 +105,27 @@ export default function AllyPage() {
           .select('*', { count: 'exact' })
 
         // Aplicar Filtros
-        if (filterLote) {
-          // Intentamos buscar en 'lote' si existe, si no en 'categoria'
-          const loteCol = columns.includes('lote') ? 'lote' : 'categoria'
-          query = query.ilike(loteCol, `%${filterLote}%`)
+        if (searchTerm) {
+          const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
+          const possibleNameCols = ['razon_social', 'razn_social', 'cliente', 'comercio']
+          
+          let loteCol = 'categoria'
+          let nameCol = 'razon_social'
+          
+          if (columns.length > 0) {
+            loteCol = possibleLoteCols.find(c => columns.includes(c)) || 'categoria'
+            nameCol = possibleNameCols.find(c => columns.includes(c)) || 'razon_social'
+          } else {
+            if (currentSlug === 'platco' || currentSlug === 'platco-pos') loteCol = 'lote'
+            else if (['banplus', 'ccr', 'instapago'].includes(currentSlug)) loteCol = 'categora'
+            
+            if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(currentSlug)) nameCol = 'razn_social'
+          }
+
+          query = query.or(`${loteCol}.ilike.*${searchTerm}*,${nameCol}.ilike.*${searchTerm}*,serial.ilike.*${searchTerm}*,serial_de_remplazo.ilike.*${searchTerm}*`)
         }
         if (filterEstatus) query = query.ilike('estatus', `%${filterEstatus}%`)
         if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
-        if (filterMes) {
-          // Asumiendo formato DD/MM/YYYY en la base de datos
-          query = query.ilike('fecha', `%/${filterMes}/%`)
-        }
-        if (filterSerial) {
-          query = query.or(`serial.ilike.%${filterSerial}%,serial_de_remplazo.ilike.%${filterSerial}%`)
-        }
 
         const { data: tableData, error: dbError, count } = await query
           .order('fecha', { ascending: false })
@@ -147,7 +154,7 @@ export default function AllyPage() {
     }
 
     fetchData()
-  }, [slug, page, filterLote, filterMes, filterEstatus, filterGarantia, filterSerial])
+  }, [slug, page, searchTerm, filterMes, filterEstatus, filterGarantia])
 
   const headers = columns.length > 0 ? columns : []
 
@@ -238,24 +245,13 @@ export default function AllyPage() {
         {/* Filtros */}
         <div className="mb-4 bg-white p-3 rounded-xl border border-outline-variant flex gap-4 items-center shadow-sm">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Lote / Categoría</label>
+            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Buscar</label>
             <input 
               type="text" 
-              placeholder="Ej: Lote 1..."
-              value={filterLote}
-              onChange={(e) => setFilterLote(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-40"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Serial</label>
-            <input 
-              type="text" 
-              placeholder="Ej: N910..."
-              value={filterSerial}
-              onChange={(e) => setFilterSerial(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+              placeholder="Serial, Cliente, Lote..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-64"
             />
           </div>
 
@@ -302,7 +298,7 @@ export default function AllyPage() {
           </div>
 
           <button 
-            onClick={() => { setFilterLote(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); setFilterSerial(''); }}
+            onClick={() => { setSearchTerm(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); }}
             className="mt-5 text-[10px] font-black uppercase text-on-surface-variant hover:text-primary transition-colors"
           >
             Limpiar Filtros
@@ -311,7 +307,7 @@ export default function AllyPage() {
           <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
 
           <Link 
-            href={`/seriales?slug=${slug}&lote=${filterLote}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}&serial=${filterSerial}&loteCol=${columns.includes('lote') ? 'lote' : 'categoria'}`}
+            href={`/seriales?slug=${slug}&search=${searchTerm}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}`}
             target="_blank"
             className="mt-5 flex items-center gap-2 bg-primary text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-md shadow-primary/20"
           >
