@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import { 
   LayoutDashboard, 
-  Monitor, 
+  Smartphone, 
   BarChart3, 
   Database,
   Settings, 
@@ -16,43 +17,54 @@ import {
   Package,
   Boxes,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ListChecks
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Terminals', href: '/terminals', icon: Monitor },
+  { name: 'Terminals', href: '/terminals', icon: Smartphone },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-]
-
-const aliados = [
-  'VATC', 'PLATCO', 'PLATCO POS', 'BANPLUS', 'CCR', 'INSTAPAGO', 'POS COMERCIAL',
-  'EXTERIOR', 'BANCARIBE', 'TOKEN PAGOS', 'BANCO ACTIVO',
-  'DEL SUR', 'PAYTECH'
 ]
 
 const dataCenter = [
   { name: 'BD Clientes', href: '/datacenter/clientes', icon: Users },
   { name: 'BD PLATCO', href: '/datacenter/platco', icon: Building2 },
-]
-
-const otros = [
-  'BANCRECER', 'BESTPAY'
+  { name: 'Base de Conocimiento', href: '/datacenter/kb', icon: HelpCircle },
 ]
 
 const secondaryNavigation = [
-  { name: 'Support', href: '/support', icon: HelpCircle },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Support', href: '/support', icon: HelpCircle },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
-  const [isAliadosOpen, setIsAliadosOpen] = useState(true)
+  const [isAliadosOpen, setIsAliadosOpen] = useState(false)
   const [isDataCenterOpen, setIsDataCenterOpen] = useState(false)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
+  
+  const [dynamicAliados, setDynamicAliados] = useState<any[]>([])
+  const [dynamicOtros, setDynamicOtros] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchAllies = async () => {
+      const { data, error } = await supabase
+        .from('allies_config')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
+      if (data) {
+        setDynamicAliados(data.filter(a => a.category === 'Aliados'))
+        setDynamicOtros(data.filter(a => a.category === 'Otros'))
+      }
+    }
+    fetchAllies()
+  }, [])
 
   return (
     <div 
@@ -66,7 +78,7 @@ export function Sidebar() {
         {/* Logo Section */}
         <div className="flex items-center gap-3 px-2 mb-10">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Monitor className="text-white w-6 h-6" />
+            <Smartphone className="text-white w-6 h-6" />
           </div>
           <div>
             <h2 className="text-h3 font-black tracking-tighter text-primary uppercase leading-tight">POS CRM</h2>
@@ -116,14 +128,14 @@ export function Sidebar() {
 
             {isAliadosOpen && (
               <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
-                {aliados.map((aliado) => (
+                {dynamicAliados.map((aliado) => (
                   <Link
-                    key={aliado}
-                    href={`/aliados/${aliado.toLowerCase().replace(/\s+/g, '-')}`}
+                    key={aliado.id}
+                    href={`/aliados/${aliado.slug}`}
                     className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
                   >
                     <Building2 className="w-3.5 h-3.5 text-on-surface-variant/40" />
-                    <span>{aliado}</span>
+                    <span>{aliado.name}</span>
                   </Link>
                 ))}
 
@@ -142,14 +154,14 @@ export function Sidebar() {
 
                   {isOtrosOpen && (
                     <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-left-2 duration-300 border-l border-outline-variant/30 ml-2">
-                      {otros.map((item) => (
+                      {dynamicOtros.map((item) => (
                         <Link
-                          key={item}
-                          href={`/aliados/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                          key={item.id}
+                          href={`/aliados/${item.slug}`}
                           className="flex items-center gap-3 px-4 py-2 text-[13px] text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
                         >
                           <Package className="w-3 h-3 text-on-surface-variant/40" />
-                          <span>{item}</span>
+                          <span>{item.name}</span>
                         </Link>
                       ))}
                     </div>

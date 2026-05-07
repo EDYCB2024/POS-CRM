@@ -71,3 +71,91 @@ body {
   .text-label-sm { @apply text-[11px] font-semibold leading-[1.2] tracking-[0.05em]; }
 }
 
+/* PDF & Print Optimization */
+@media print {
+  @page {
+    size: letter;
+    margin: 10mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide navigation and UI elements */
+  .no-print, 
+  nav, 
+  aside, 
+  header,
+  .sidebar-trigger,
+  button:not(.print-visible) {
+    display: none !important;
+  }
+
+  /* Force container to take full width */
+  .print-full-width {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Print & Capture helper classes */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  /* Reset background and overflow */
+  html, body {
+    background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation, sidebar and UI elements */
+  aside, nav, .sidebar, .topbar, .no-print, [role="navigation"], header, footer {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+  }
+
+  /* Ensure the report container is visible and occupies the first page */
+  .report-print-container {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 9999 !important;
+  }
+
+  /* Force all children of the report to be visible */
+  .report-print-container * {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Force display: block for print-only elements */
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure text is black and high contrast */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

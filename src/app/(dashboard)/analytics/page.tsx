@@ -1,132 +1,257 @@
+"use client";
+
 import { TopBar } from "@/components/layout/TopBar";
 import { 
-  Calendar, 
-  FileDown, 
   TrendingUp, 
-  TrendingDown, 
-  MapPin,
-  ChevronRight,
-  Filter,
-  MoreVertical
+  Monitor, 
+  ShieldCheck,
+  Plus,
+  BarChart3,
+  Activity,
+  Zap,
+  ArrowUpRight
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { supabase } from "@/lib/supabase";
+import { useState, useEffect } from "react";
 
-const stats = [
-  { label: "Total Sales", value: "$124,592.00", change: "12%", trend: "up" },
-  { label: "Transactions", value: "3,842", change: "8%", trend: "up" },
-  { label: "Active Terminals", value: "48 / 50", change: "96%", trend: "stable" },
-  { label: "Net Profit", value: "$34,210.50", change: "2%", trend: "down" },
+const kpis = [
+  {
+    title: "Active Terminals",
+    value: "1,248",
+    change: "Stable",
+    comparison: "98% uptime across all zones",
+    icon: Monitor,
+    color: "text-secondary",
+    bgColor: "bg-secondary-container/30",
+    changeColor: "text-blue-600 bg-blue-50"
+  }
 ];
 
-const locations = [
-  { name: "New York City, NY", value: "$42,390", percentage: 85 },
-  { name: "Los Angeles, CA", value: "$38,210", percentage: 76 },
-  { name: "Chicago, IL", value: "$24,500", percentage: 49 },
-  { name: "Houston, TX", value: "$19,492", percentage: 38 },
+const activity = [
+  {
+    title: "New Terminal Activated",
+    subtitle: "Central Mall, London - Store #42",
+    time: "2 minutes ago",
+    color: "bg-green-500",
+    ringColor: "ring-green-100"
+  },
+  {
+    title: "Bulk Payment Processed",
+    subtitle: "High Street Hub - $4,200.00",
+    time: "45 minutes ago",
+    color: "bg-blue-500",
+    ringColor: "ring-blue-100"
+  },
+  {
+    title: "System Alert: Offline",
+    subtitle: "North Station Kiosk #3",
+    time: "1 hour ago",
+    color: "bg-error",
+    ringColor: "ring-error-container"
+  },
+  {
+    title: "Software Update",
+    subtitle: "Firmware v2.4.1 deployed",
+    time: "3 hours ago",
+    color: "bg-slate-300",
+    ringColor: "ring-slate-100"
+  }
 ];
 
 export default function AnalyticsPage() {
+  const [activeTerminals, setActiveTerminals] = useState<number>(0);
+  const [modelData, setModelData] = useState<{name: string, count: number, percentage: number}[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const tables = [
+          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 
+          'exterior', 'bancaribe', 'tokenp', 'bactivo', 
+          'poscom', 'paytech', 'bestpay', 'bancrecer'
+        ];
+
+        const results = await Promise.all(
+          tables.map(table => 
+            supabase.from(table).select('modelo')
+          )
+        );
+
+        const modelMap: Record<string, number> = {};
+        let total = 0;
+
+        results.forEach((res) => {
+          if (res.data) {
+            res.data.forEach((item: any) => {
+              const model = item.modelo || 'Otros';
+              modelMap[model] = (modelMap[model] || 0) + 1;
+              total++;
+            });
+          }
+        });
+
+        const sortedModels = Object.entries(modelMap)
+          .map(([name, count]) => ({ 
+            name, 
+            count, 
+            percentage: Math.round((count / total) * 100) 
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 12); 
+
+        setActiveTerminals(total);
+        setModelData(sortedModels);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const dynamicKpis = [
+    {
+      ...kpis[0],
+      value: loading ? "..." : activeTerminals.toLocaleString(),
+      comparison: `Total gestionado en ${loading ? '...' : '13'} aliados`
+    }
+  ];
+
   return (
     <>
-      <TopBar title="Analytics Overview" />
+      <TopBar title="Análisis y Reportes" />
       
-      <div className="p-lg space-y-lg">
-        {/* Header with Date Range */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center bg-white px-3 py-1.5 rounded-full border border-outline-variant shadow-sm">
-            <Calendar className="w-4 h-4 text-on-surface-variant mr-2" />
-            <span className="text-label-md text-on-surface-variant">Oct 1, 2023 - Oct 31, 2023</span>
-          </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-outline-variant text-primary font-semibold rounded-lg hover:bg-surface-container-low transition-colors">
-            <FileDown className="w-4 h-4" />
-            Export Data
-          </button>
+      <div className="px-lg pt-md">
+        <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full w-fit animate-pulse">
+          <div className="w-2 h-2 rounded-full bg-primary"></div>
+          <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+            {loading ? 'Procesando Datos...' : 'Analítica en Vivo'}
+          </span>
         </div>
-
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
-          {stats.map((stat) => (
-            <div key={stat.label} className="bg-white p-md border border-outline-variant rounded-xl shadow-sm">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-label-sm text-on-surface-variant uppercase tracking-wider">{stat.label}</span>
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center",
-                  stat.trend === 'up' && "text-green-600 bg-green-50",
-                  stat.trend === 'down' && "text-error bg-error-container",
-                  stat.trend === 'stable' && "text-on-surface-variant bg-surface-container-low"
-                )}>
-                  {stat.trend === 'up' && <TrendingUp className="w-3 h-3 mr-0.5" />}
-                  {stat.trend === 'down' && <TrendingDown className="w-3 h-3 mr-0.5" />}
-                  {stat.change}
-                </span>
+      </div>
+      
+      <main className="p-lg space-y-lg max-w-[1440px] mx-auto w-full">
+        {/* KPI Section */}
+        <div className="grid grid-cols-1 gap-md">
+          {dynamicKpis.map((kpi) => (
+            <div key={kpi.title} className="bg-white border border-outline-variant p-lg rounded-2xl hover:bg-surface-container-low transition-all shadow-sm group border-l-4 border-l-primary">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-lg">
+                  <div className={cn("p-4 rounded-xl transition-transform group-hover:scale-110", kpi.bgColor)}>
+                    <kpi.icon className={cn("w-8 h-8", kpi.color)} />
+                  </div>
+                  <div>
+                    <p className="text-label-lg text-on-surface-variant font-medium">{kpi.title}</p>
+                    <h2 className="text-[40px] font-bold text-on-surface leading-tight">{kpi.value}</h2>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={cn("text-label-md font-bold px-3 py-1 rounded-full", kpi.changeColor)}>
+                    {kpi.change}
+                  </span>
+                  <p className="text-label-md text-outline mt-2">{kpi.comparison}</p>
+                </div>
               </div>
-              <div className="text-h1 text-on-surface">{stat.value}</div>
             </div>
           ))}
-        </section>
+        </div>
 
-        {/* Charts & Details */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
-          <div className="lg:col-span-8 bg-white p-lg border border-outline-variant rounded-xl shadow-sm">
+        {/* Real-time Data Distribution */}
+        <DashboardCharts />
+
+        {/* Bento Grid Content */}
+        <div className="grid grid-cols-12 gap-md items-stretch">
+          {/* Recent Activity Section */}
+          <div className="col-span-12 lg:col-span-4 bg-white border border-outline-variant rounded-xl p-lg shadow-sm">
             <div className="flex justify-between items-center mb-lg">
-              <div>
-                <h3 className="text-on-surface">Sales by Location</h3>
-                <p className="text-body-md text-on-surface-variant">Regional performance tracking</p>
-              </div>
+              <h3 className="text-h3 text-on-surface font-bold">Actividad Crítica</h3>
+              <button className="text-primary text-label-md font-semibold hover:underline">Auditoría</button>
             </div>
-            
-            <div className="space-y-6">
-              {locations.map((loc) => (
-                <div key={loc.name} className="space-y-2">
-                  <div className="flex justify-between text-label-md">
-                    <span className="text-on-surface">{loc.name}</span>
-                    <span className="font-bold">{loc.value}</span>
-                  </div>
-                  <div className="h-3 w-full bg-surface-container rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full" 
-                      style={{ width: `${loc.percentage}%` }}
-                    ></div>
-                  </div>
+            <div className="space-y-md relative before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-low">
+              {activity.map((item, i) => (
+                <div key={i} className="relative pl-8 group cursor-pointer">
+                  <div className={cn(
+                    "absolute left-0 top-1 w-5 h-5 rounded-full border-4 border-white ring-1 transition-transform group-hover:scale-125",
+                    item.color,
+                    item.ringColor
+                  )}></div>
+                  <p className="text-body-md font-semibold group-hover:text-primary transition-colors">{item.title}</p>
+                  <p className="text-label-md text-on-surface-variant">{item.subtitle}</p>
+                  <span className="text-label-sm text-outline">{item.time}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="lg:col-span-4 bg-white p-lg border border-outline-variant rounded-xl shadow-sm flex flex-col">
-            <h3 className="text-on-surface mb-2">Product Categories</h3>
-            <p className="text-body-md text-on-surface-variant mb-lg">Revenue split by type</p>
-            
-            <div className="flex-1 flex flex-col items-center justify-center relative py-xl">
-              <div className="w-48 h-48 rounded-full border-[18px] border-surface-container flex items-center justify-center relative">
-                {/* Simplified CSS Circle for preview */}
-                <div className="absolute inset-0 border-[18px] border-primary border-r-transparent border-b-transparent rounded-full rotate-45"></div>
-                <div className="text-center">
-                  <div className="text-h1 font-bold text-on-surface">74%</div>
-                  <div className="text-label-sm text-outline uppercase">Core Goods</div>
-                </div>
+          {/* Models Comparison Bar Chart */}
+          <div className="col-span-12 lg:col-span-8 bg-white border border-outline-variant rounded-xl p-lg shadow-sm">
+            <div className="flex justify-between items-center mb-xl">
+              <div>
+                <h3 className="text-h3 text-on-surface font-bold">Concentración de Hardware</h3>
+                <p className="text-body-md text-on-surface-variant">Modelos con mayor penetración en la red</p>
               </div>
-              
-              <div className="mt-xl w-full space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-primary"></div>
-                    <span className="text-body-md">Electronics</span>
+              <div className="flex bg-surface-container-low rounded-lg p-1">
+                <button className="px-3 py-1 text-label-md bg-white rounded-md shadow-sm">Tendencia</button>
+                <button className="px-3 py-1 text-label-md text-on-surface-variant">Reporte</button>
+              </div>
+            </div>
+            
+            <div className="h-64 relative rounded-xl bg-surface-container-low/30 border border-outline-variant/50 mt-4">
+              <div className="absolute bottom-0 left-0 right-0 top-10 flex items-end justify-between px-6 pb-2 gap-2">
+                {loading ? (
+                  <div className="w-full h-full flex items-center justify-center text-outline animate-pulse">
+                    Procesando modelos...
                   </div>
-                  <span className="text-label-md font-bold">42%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-tertiary"></div>
-                    <span className="text-body-md">Home Goods</span>
-                  </div>
-                  <span className="text-label-md font-bold">32%</span>
-                </div>
+                ) : (
+                  modelData.map((model, i) => (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "flex-1 rounded-t-sm transition-all hover:opacity-80 group relative min-w-[20px]",
+                        i === 0 ? "bg-primary" : i === 1 ? "bg-secondary" : i === 2 ? "bg-tertiary" : "bg-primary-container"
+                      )}
+                      style={{ height: `${(model.count / (modelData[0]?.count || 1)) * 100}%` }}
+                    >
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-on-surface text-surface text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg pointer-events-none">
+                        <p className="font-bold">{model.name}</p>
+                        <p>{model.count.toLocaleString()} unidades</p>
+                      </div>
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary whitespace-nowrap">
+                        {model.count}
+                      </div>
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-on-surface-variant whitespace-nowrap rotate-45 origin-left">
+                        {model.name}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="h-16"></div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mt-xl pt-lg border-t border-outline-variant">
+              <div className="hover:bg-surface-container-low p-2 rounded-lg transition-colors">
+                <p className="text-[10px] text-outline uppercase tracking-wider mb-1 font-bold">Líder del Parque</p>
+                <p className="text-h3 text-primary">{modelData[0]?.name || '...'}</p>
+              </div>
+              <div className="hover:bg-surface-container-low p-2 rounded-lg transition-colors">
+                <p className="text-[10px] text-outline uppercase tracking-wider mb-1 font-bold">Diversidad</p>
+                <p className="text-h3 text-secondary">{modelData.length} modelos</p>
+              </div>
+              <div className="hover:bg-surface-container-low p-2 rounded-lg transition-colors">
+                <p className="text-[10px] text-outline uppercase tracking-wider mb-1 font-bold">SLA Global</p>
+                <p className="text-h3 text-tertiary">99.9%</p>
               </div>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </main>
     </>
   );
 }
