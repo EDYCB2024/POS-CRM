@@ -20,12 +20,18 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
 
   useEffect(() => {
     async function fetchData() {
-      const { slug, search, mes, estatus, garantia, lote } = params
+      const { slug, search, mes, estatus, estatus_caso, garantia, lote } = params
       if (!slug) return
 
       try {
         setLoading(true)
-        const tableName = slug.replace(/-/g, '_')
+        const tableMapping: Record<string, string> = {
+          'del-sur': 'delsur',
+          'pos-comercial': 'poscom',
+          'token-pagos': 'tokenp',
+          'banco-activo': 'bactivo'
+        }
+        const tableName = tableMapping[slug] || slug.replace(/-/g, '_')
         
         // Determinar columnas según el aliado
         let loteCol = 'categoria'
@@ -45,8 +51,11 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
           query = query.ilike(loteCol, `%${lote}%`)
         }
         if (estatus) query = query.ilike('estatus', `%${estatus}%`)
+        if (estatus_caso) query = query.ilike('estatus_del_caso', `%${estatus_caso}%`)
         if (garantia) query = query.ilike('garantia', `%${garantia}%`)
-        if (mes) query = query.ilike('fecha', `%/${mes}/%`)
+        if (mes) {
+          query = query.or(`fecha.ilike.%-${mes}-%,fecha.ilike.%/${mes}/%`)
+        }
         
         if (search) {
           query = query.or(`${loteCol}.ilike.*${search}*,${nameCol}.ilike.*${search}*,serial.ilike.*${search}*,serial_de_remplazo.ilike.*${search}*`)

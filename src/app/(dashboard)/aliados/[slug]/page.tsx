@@ -22,7 +22,9 @@ import {
   Download,
   CloudUpload,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  FilterX,
+  RefreshCw
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
@@ -41,6 +43,7 @@ export default function AllyPage() {
   const [filterLote, setFilterLote] = useState('')
   const [filterMes, setFilterMes] = useState('')
   const [filterEstatus, setFilterEstatus] = useState('')
+  const [filterEstatusCaso, setFilterEstatusCaso] = useState('')
   const [filterGarantia, setFilterGarantia] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -65,7 +68,14 @@ export default function AllyPage() {
     if (selectedIds.length === 0) return
     try {
       setLoading(true)
-      const tableName = slug?.toString().replace(/-/g, '_') || ''
+      const currentSlug = slug?.toString() || ''
+      const tableMapping: Record<string, string> = {
+        'del-sur': 'delsur',
+        'pos-comercial': 'poscom',
+        'token-pagos': 'tokenp',
+        'banco-activo': 'bactivo'
+      }
+      const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
       const { error: updateError } = await supabase
         .from(tableName)
         .update({ estatus: newStatus, modificado_crm: true })
@@ -89,72 +99,82 @@ export default function AllyPage() {
     ccr: ['n', 'fecha', 'aliado', 'modelo', 'razon_social', 'serial', 'rif', 'ingreso', 'categoria', 'fecha_final', 'estatus', 'nivel', 'observaciones'],
   }
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!slug) return
-      try {
-        setLoading(true)
-        const currentSlug = slug.toString()
-        const tableName = currentSlug.replace(/-/g, '_')
-        
-        const from = page * pageSize
-        const to = from + pageSize - 1
-
-        let query = supabase
-          .from(tableName)
-          .select('*', { count: 'exact' })
-
-        // Aplicar Filtros
-        if (searchTerm) {
-          const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
-          const possibleNameCols = ['razon_social', 'razn_social', 'cliente', 'comercio']
-          
-          let loteCol = 'categoria'
-          let nameCol = 'razon_social'
-          
-          if (columns.length > 0) {
-            loteCol = possibleLoteCols.find(c => columns.includes(c)) || 'categoria'
-            nameCol = possibleNameCols.find(c => columns.includes(c)) || 'razon_social'
-          } else {
-            if (currentSlug === 'platco' || currentSlug === 'platco-pos') loteCol = 'lote'
-            else if (['banplus', 'ccr', 'instapago'].includes(currentSlug)) loteCol = 'categora'
-            
-            if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(currentSlug)) nameCol = 'razn_social'
-          }
-
-          query = query.or(`${loteCol}.ilike.*${searchTerm}*,${nameCol}.ilike.*${searchTerm}*,serial.ilike.*${searchTerm}*,serial_de_remplazo.ilike.*${searchTerm}*`)
-        }
-        if (filterEstatus) query = query.ilike('estatus', `%${filterEstatus}%`)
-        if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
-
-        const { data: tableData, error: dbError, count } = await query
-          .order('fecha', { ascending: false })
-          .range(from, to)
-
-        if (dbError) throw dbError
-        
-        setData(tableData || [])
-        setTotalCount(count || 0)
-        if (tableData && tableData.length > 0) {
-          const allCols = Object.keys(tableData[0]).filter(h => !['id', 'created_at', 'serial_id', 'modificado_crm'].includes(h))
-          const preferred = COLUMN_ORDER[currentSlug] || []
-          
-          const sortedCols = [
-            ...preferred.filter(p => allCols.includes(p)),
-            ...allCols.filter(c => !preferred.includes(c))
-          ]
-          setColumns(sortedCols)
-        }
-      } catch (err: any) {
-        console.error('Error fetching data:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
+  const fetchData = async () => {
+    if (!slug) return
+    try {
+      setLoading(true)
+      const currentSlug = slug.toString()
+      const tableMapping: Record<string, string> = {
+        'del-sur': 'delsur',
+        'pos-comercial': 'poscom',
+        'token-pagos': 'tokenp',
+        'banco-activo': 'bactivo'
       }
-    }
+      const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
+      
+      const from = page * pageSize
+      const to = from + pageSize - 1
 
+      let query = supabase
+        .from(tableName)
+        .select('*', { count: 'exact' })
+
+      // Aplicar Filtros
+      if (searchTerm) {
+        const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
+        const possibleNameCols = ['razon_social', 'razn_social', 'cliente', 'comercio']
+        
+        let loteCol = 'categoria'
+        let nameCol = 'razon_social'
+        
+        if (columns.length > 0) {
+          loteCol = possibleLoteCols.find(c => columns.includes(c)) || 'categoria'
+          nameCol = possibleNameCols.find(c => columns.includes(c)) || 'razon_social'
+        } else {
+          if (currentSlug === 'platco' || currentSlug === 'platco-pos') loteCol = 'lote'
+          else if (['banplus', 'ccr', 'instapago'].includes(currentSlug)) loteCol = 'categora'
+          
+          if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(currentSlug)) nameCol = 'razn_social'
+        }
+
+        query = query.or(`${loteCol}.ilike.*${searchTerm}*,${nameCol}.ilike.*${searchTerm}*,serial.ilike.*${searchTerm}*,serial_de_remplazo.ilike.*${searchTerm}*`)
+      }
+      if (filterMes) {
+        query = query.or(`fecha.ilike.%-${filterMes}-%,fecha.ilike.%/${filterMes}/%`)
+      }
+      if (filterEstatus) query = query.ilike('estatus', `%${filterEstatus}%`)
+      if (filterEstatusCaso) query = query.ilike('estatus_del_caso', `%${filterEstatusCaso}%`)
+      if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
+
+      const { data: tableData, error: dbError, count } = await query
+        .order('fecha', { ascending: false })
+        .range(from, to)
+
+      if (dbError) throw dbError
+      
+      setData(tableData || [])
+      setTotalCount(count || 0)
+      if (tableData && tableData.length > 0) {
+        const allCols = Object.keys(tableData[0]).filter(h => !['id', 'created_at', 'serial_id', 'modificado_crm'].includes(h))
+        const preferred = COLUMN_ORDER[currentSlug] || []
+        
+        const sortedCols = [
+          ...preferred.filter(p => allCols.includes(p)),
+          ...allCols.filter(c => !preferred.includes(c))
+        ]
+        setColumns(sortedCols)
+      }
+    } catch (err: any) {
+      console.error('Error fetching data:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchData()
-  }, [slug, page, searchTerm, filterMes, filterEstatus, filterGarantia])
+  }, [slug, page, searchTerm, filterMes, filterEstatus, filterEstatusCaso, filterGarantia])
 
   const headers = columns.length > 0 ? columns : []
 
@@ -217,11 +237,14 @@ export default function AllyPage() {
       
       <section className="p-4">
         <div className="mb-4 flex justify-between items-center">
-          <div>
+          <div className="flex flex-col">
             <h1 className="text-xl uppercase tracking-tight font-black flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
               {slug}
             </h1>
+            <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-widest ml-7">
+              {totalCount.toLocaleString()} Registros
+            </p>
           </div>
           <div className="flex gap-2">
             <button className="flex items-center gap-2 bg-white border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-semibold hover:bg-surface-container transition-all">
@@ -277,10 +300,26 @@ export default function AllyPage() {
               className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
             >
               <option value="">Todos</option>
-              <option value="ABIERTO">Abierto</option>
-              <option value="CERRADO">Cerrado</option>
-              <option value="PROCESO">Proceso</option>
+              <option value="ENTREGADO">Entregado</option>
+              <option value="EN REVISION">En Revisión</option>
               <option value="IRREPARABLE">Irreparable</option>
+              <option value="PENDIENTE POR PAGO">Pendiente Pago</option>
+              <option value="SERVICIO TECNICO">Servicio Técnico</option>
+              <option value="OPERATIVO">Operativo</option>
+              <option value="SUSTITUIDO">Sustituido</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Estatus del Caso</label>
+            <select 
+              value={filterEstatusCaso}
+              onChange={(e) => setFilterEstatusCaso(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+            >
+              <option value="">Todos</option>
+              <option value="ABIERTO">Caso Abierto</option>
+              <option value="CERRADO">Caso Cerrado</option>
             </select>
           </div>
 
@@ -297,23 +336,28 @@ export default function AllyPage() {
             />
           </div>
 
-          <button 
-            onClick={() => { setSearchTerm(''); setFilterMes(''); setFilterEstatus(''); setFilterGarantia(''); }}
-            className="mt-5 text-[10px] font-black uppercase text-on-surface-variant hover:text-primary transition-colors"
-          >
-            Limpiar Filtros
-          </button>
+          { (searchTerm || filterMes || filterEstatus || filterEstatusCaso || filterGarantia) && (
+            <>
+              <button 
+                onClick={() => { setSearchTerm(''); setFilterMes(''); setFilterEstatus(''); setFilterEstatusCaso(''); setFilterGarantia(''); }}
+                className="mt-6 p-2 bg-slate-100 text-on-surface-variant hover:text-red-600 hover:bg-red-50 rounded-lg transition-all animate-in fade-in zoom-in duration-200"
+                title="Limpiar Filtros"
+              >
+                <FilterX className="w-4 h-4" />
+              </button>
 
-          <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
+              <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
 
-          <Link 
-            href={`/seriales?slug=${slug}&search=${searchTerm}&mes=${filterMes}&estatus=${filterEstatus}&garantia=${filterGarantia}`}
-            target="_blank"
-            className="mt-5 flex items-center gap-2 bg-primary text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-md shadow-primary/20"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Ver Seriales Filtrados
-          </Link>
+              <Link 
+                href={`/seriales?slug=${slug}&search=${searchTerm}&mes=${filterMes}&estatus=${filterEstatus}&estatus_caso=${filterEstatusCaso}&garantia=${filterGarantia}`}
+                target="_blank"
+                className="mt-6 p-2 bg-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center animate-in fade-in zoom-in duration-200"
+                title="Ver Seriales Filtrados"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+            </>
+          )}
         </div>
 
         {selectedIds.length > 0 && (
@@ -353,7 +397,14 @@ export default function AllyPage() {
             {/* Table Toolbar */}
             <div className="px-4 py-2 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
               <div className="flex gap-2">
-                {/* Search removed */}
+                <button 
+                  onClick={() => fetchData()}
+                  className="p-1.5 bg-white border border-outline-variant rounded-md hover:bg-slate-50 text-on-surface-variant transition-all flex items-center gap-2 group"
+                  title="Refrescar Datos"
+                >
+                  <RefreshCw className={cn("w-3.5 h-3.5 text-primary group-hover:rotate-180 transition-transform duration-500", loading && "animate-spin")} />
+                  <span className="text-[10px] font-bold uppercase tracking-tight">Refrescar</span>
+                </button>
               </div>
               <div className="flex items-center gap-4">
                 <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">

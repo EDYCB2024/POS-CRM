@@ -41,7 +41,7 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
         const tables = [
           'vatc', 'banplus', 'ccr', 'instapago', 'platco', 'platco_pos',
           'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-          'poscom', 'paytech', 'bestpay', 'bancrecer'
+          'poscom', 'paytech', 'bestpay', 'bancrecer', 'delsur', 'otros'
         ]
 
         // Search for the serial in all tables to build a complete history
@@ -79,7 +79,14 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
 
   if (!isOpen) return null
 
-  const mainRecord = history.find(r => r.sourceTable === currentSlug.replace(/-/g, '_')) || history[0]
+  const tableMapping: Record<string, string> = {
+    'del-sur': 'delsur',
+    'pos-comercial': 'poscom',
+    'token-pagos': 'tokenp',
+    'banco-activo': 'bactivo'
+  }
+  const targetTableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
+  const mainRecord = history.find(r => r.sourceTable === targetTableName) || history[0]
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm animate-in fade-in duration-200">
