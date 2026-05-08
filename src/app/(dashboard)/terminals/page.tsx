@@ -17,12 +17,13 @@ import {
   Zap,
   Store,
   Download,
-  Loader2
+  Loader2,
+  Search,
+  ShieldCheck,
+  ShieldX
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
-import { FilterDropdown } from "@/components/ui/FilterDropdown";
-import { ShieldCheck, ShieldX } from 'lucide-react';
 
 
 const stats = [
@@ -46,7 +47,6 @@ let cachedTerminalsData: {
 } | null = null;
 
 export default function TerminalsPage() {
-  const [warrantyFilter, setWarrantyFilter] = useState<string>('');
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(!cachedTerminalsData);
   const [searchQuery, setSearchQuery] = useState('');
@@ -257,15 +257,6 @@ export default function TerminalsPage() {
                   className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-xs font-bold text-primary placeholder:text-outline/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
-              <FilterDropdown 
-                label="Garantía"
-                currentValue={warrantyFilter}
-                onSelect={setWarrantyFilter}
-                options={[
-                  { label: "Si", value: "si", icon: ShieldCheck },
-                  { label: "No", value: "no", icon: ShieldX }
-                ]}
-              />
               <button 
                 onClick={() => fetchRealData(true)}
                 className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]"
