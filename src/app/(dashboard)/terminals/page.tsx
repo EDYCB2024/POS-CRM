@@ -49,6 +49,8 @@ export default function TerminalsPage() {
   const [warrantyFilter, setWarrantyFilter] = useState<string>('');
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(!cachedTerminalsData);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [recentTerminals, setRecentTerminals] = useState<any[]>(cachedTerminalsData?.recent || []);
   const [statsData, setStatsData] = useState({
     total: cachedTerminalsData?.total || 0,
@@ -57,47 +59,66 @@ export default function TerminalsPage() {
   });
 
   const fetchRealData = async (force: boolean = false) => {
-    if (!force && cachedTerminalsData) {
+    if (!force && cachedTerminalsData && !searchQuery) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      // Use consolidated RPC (1 request instead of 32)
-      const { data, error } = await supabase.rpc('get_terminals_summary', { p_limit: 10 });
-      
-      if (error) throw error;
-
-      if (data) {
-        const { total_count, recent_terminals } = data;
-        
-        // Transform keys if needed (source_table vs sourceTable)
-        const formattedRecent = recent_terminals.map((t: any) => ({
-          ...t,
-          sourceTable: t.source_table // Map snake_case from SQL to camelCase used in UI
-        }));
-
-        setStatsData({
-          total: total_count,
-          active: Math.floor(total_count * 0.96),
-          alerts: Math.floor(total_count * 0.04)
+      if (searchQuery) {
+        setIsSearching(true);
+        const { data, error } = await supabase.rpc('search_terminals', { 
+          p_query: searchQuery,
+          p_limit: 20 
         });
-        setRecentTerminals(formattedRecent);
+        if (error) throw error;
         
-        // Save to cache
-        cachedTerminalsData = { total: total_count, recent: formattedRecent };
+        const formatted = (data || []).map((t: any) => ({
+          ...t,
+          sourceTable: t.source_table
+        }));
+        setRecentTerminals(formatted);
+      } else {
+        setIsSearching(false);
+        const { data, error } = await supabase.rpc('get_terminals_summary', { p_limit: 10 });
+        if (error) throw error;
+
+        if (data) {
+          const { total_count, recent_terminals } = data;
+          const formattedRecent = recent_terminals.map((t: any) => ({
+            ...t,
+            sourceTable: t.source_table
+          }));
+
+          setStatsData({
+            total: total_count,
+            active: Math.floor(total_count * 0.96),
+            alerts: Math.floor(total_count * 0.04)
+          });
+          setRecentTerminals(formattedRecent);
+          cachedTerminalsData = { total: total_count, recent: formattedRecent };
+        }
       }
     } catch (err) {
-      console.error('Error fetching terminals summary:', err);
+      console.error('Error fetching terminals:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRealData();
-  }, []);
+    // Only auto-fetch if not searching or if search is cleared
+    if (!searchQuery) {
+      fetchRealData();
+    }
+  }, [searchQuery]);
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      fetchRealData(true);
+    }
+  };
 
   const stats = [
     { label: "Total Terminales", value: statsData.total.toString(), change: "Sincronizado", color: "bg-secondary-container", icon: Smartphone, iconColor: "text-on-secondary-container" },
@@ -222,10 +243,20 @@ export default function TerminalsPage() {
           ))}
         </div>
 
-        {/* Terminal Table */}
         <div className="bg-white rounded-xl border border-outline-variant overflow-hidden">
-          <div className="px-lg py-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
-            <div className="flex gap-md items-center">
+          <div className="px-lg py-md border-b border-outline-variant bg-surface-container-low flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-wrap gap-md items-center w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
+                <input 
+                  type="text"
+                  placeholder="Buscar serial o comercio..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyPress}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-xs font-bold text-primary placeholder:text-outline/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
               <FilterDropdown 
                 label="Garantía"
                 currentValue={warrantyFilter}
@@ -236,15 +267,17 @@ export default function TerminalsPage() {
                 ]}
               />
               <button 
-                onClick={() => fetchRealData()}
+                onClick={() => fetchRealData(true)}
                 className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]"
               >
                 <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                Actualizar
+                {searchQuery ? 'Buscar' : 'Actualizar'}
               </button>
             </div>
             <div className="flex items-center gap-sm">
-              <p className="text-label-sm text-on-surface-variant">Mostrando los 10 más recientes</p>
+              <p className="text-label-sm text-on-surface-variant">
+                {isSearching ? `Resultados de búsqueda: ${recentTerminals.length}` : 'Mostrando los 10 más recientes'}
+              </p>
             </div>
           </div>
 
