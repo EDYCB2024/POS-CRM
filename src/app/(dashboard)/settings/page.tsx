@@ -363,7 +363,7 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 gap-3">
                     {loadingAllies ? (
-                      Array(5).fill(0).map((_, i) => (
+                      Array(5).fill(0).map((_: any, i: number) => (
                         <div key={i} className="h-20 bg-slate-50 animate-pulse rounded-2xl border border-outline-variant/30" />
                       ))
                     ) : allies.map((ally) => (
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                 <div className="p-6 overflow-y-auto max-h-[600px]">
                   <div className="grid grid-cols-1 gap-4">
                     {loadingUsers ? (
-                      Array(3).fill(0).map((_, i) => (
+                      Array(3).fill(0).map((_: any, i: number) => (
                         <div key={i} className="h-24 bg-slate-50 animate-pulse rounded-2xl border border-outline-variant/30" />
                       ))
                     ) : users.length === 0 ? (

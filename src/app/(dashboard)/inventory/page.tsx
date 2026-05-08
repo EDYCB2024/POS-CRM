@@ -338,7 +338,7 @@ export default function InventoryPage() {
                 </div>
                 <div className="text-right pr-2">
                   <div className="flex -space-x-2 overflow-hidden">
-                    {items.slice(0, 3).map((_, idx) => (
+                    {items.slice(0, 3).map((_: any, idx: number) => (
                       <div key={idx} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-red-100 flex items-center justify-center">
                         <Boxes className="w-3 h-3 text-red-500" />
                       </div>
