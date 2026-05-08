@@ -40,11 +40,17 @@ const secondaryNavigation = [
   { name: 'Support', href: '/support', icon: HelpCircle },
 ]
 
+const inventory = [
+  { name: 'Stock General', href: '/inventory', icon: Boxes },
+  { name: 'Movimientos', href: '/inventory/movements', icon: ListChecks },
+]
+
 export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const [isAliadosOpen, setIsAliadosOpen] = useState(false)
   const [isDataCenterOpen, setIsDataCenterOpen] = useState(false)
+  const [isInventoryOpen, setIsInventoryOpen] = useState(true)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
   
   const [dynamicAliados, setDynamicAliados] = useState<any[]>([])
@@ -193,6 +199,41 @@ export function Sidebar() {
             {isDataCenterOpen && (
               <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
                 {dataCenter.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
+                  >
+                    <item.icon className="w-3.5 h-3.5 text-on-surface-variant/40" />
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Inventario Section */}
+          <div className="pt-4 mt-2">
+            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Logistics</div>
+            <button
+              onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                isInventoryOpen
+                  ? "bg-secondary-container/30 text-primary border border-primary/10"
+                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Package className={cn("w-5 h-5", isInventoryOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
+                <span>Inventario</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isInventoryOpen ? "rotate-180" : "")} />
+            </button>
+
+            {isInventoryOpen && (
+              <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
+                {inventory.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}

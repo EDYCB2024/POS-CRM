@@ -328,7 +328,7 @@ export default function SettingsPage() {
                                 autoFocus
                               />
                               <button onClick={() => handleUpdateAllyName(ally.id)} className="p-1.5 bg-green-500 text-white rounded-lg"><Save className="w-4 h-4" /></button>
-                              <button onClick={() => setEditingAllyId(null)} className="p-1.5 bg-slate-200 text-slate-600 rounded-lg"><X className="w-4 h-4" /></button>
+                                <button onClick={() => setEditingAllyId(null)} className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all"><X className="w-4 h-4" /></button>
                             </div>
                           ) : (
                             <div>

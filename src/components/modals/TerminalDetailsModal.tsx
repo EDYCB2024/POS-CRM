@@ -111,6 +111,7 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'edit' | 'report'>('info')
   const [formData, setFormData] = useState<any>({})
   const [saving, setSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const [accessories, setAccessories] = useState<Record<string, boolean>>({
     'Caja original': false,
     'Cargador': false,
@@ -192,7 +193,11 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
   if (!isOpen) return null
 
   const handleSave = async () => {
-    if (!mainRecord) return
+    if (!serial) return
+    
+    const confirmSave = window.confirm('¿Está seguro de que desea guardar los cambios en este expediente?')
+    if (!confirmSave) return
+
     setSaving(true)
     try {
       const { id, sourceTable, created_at, ...updateData } = formData
@@ -286,22 +291,22 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-full transition-colors text-on-surface-variant"
+            className="p-2 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-xl transition-all"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-outline-variant bg-white px-8 no-print">
           <button 
             onClick={() => setActiveTab('info')}
             className={cn(
-              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2",
-              activeTab === 'info' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
+              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
+              activeTab === 'info' || activeTab === 'edit' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
             )}
           >
-            Información Actual
+            <Edit2 className="w-4 h-4" />
+            Expediente / Edición
           </button>
           <button 
             onClick={() => setActiveTab('history')}
@@ -311,16 +316,6 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
             )}
           >
             Historial de Ingresos ({history.length})
-          </button>
-          <button 
-            onClick={() => setActiveTab('edit')}
-            className={cn(
-              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
-              activeTab === 'edit' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
-            )}
-          >
-            <Edit2 className="w-4 h-4" />
-            Editar Expediente
           </button>
           <button 
             onClick={() => setActiveTab('report')}
@@ -334,144 +329,148 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           {loading ? (
             <div className="h-64 flex flex-col items-center justify-center gap-4">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
               <p className="text-sm font-bold text-outline uppercase tracking-widest">Consultando base de datos...</p>
             </div>
-          ) : activeTab === 'info' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
-              {/* Row 1: Detalles & Estado */}
-              <section>
-                <h3 className="text-xs font-black uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  Detalles Técnicos
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoItem icon={Hash} label="Serial" value={mainRecord?.serial || mainRecord?.serial_de_remplazo} />
-                  <InfoItem icon={Monitor} label="Modelo" value={mainRecord?.modelo} />
-                  <InfoItem icon={Calendar} label="Último Ingreso" value={mainRecord?.fecha?.split('T')[0]} />
-                  <InfoItem icon={Tag} label="Categoría/Lote" value={mainRecord?.categoria || mainRecord?.lote} />
-                </div>
-              </section>
+          ) : activeTab === 'info' || activeTab === 'edit' ? (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-3xl border border-outline-variant/30 shadow-sm overflow-hidden">
+                <table className="w-full border-collapse table-fixed">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-outline-variant/20">
+                      <th className="px-8 py-4 text-left text-[11px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em] w-1/2">Nombre del Campo</th>
+                      <th className="px-8 py-4 text-left text-[11px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em] w-1/2">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/10">
+                    {Object.keys(formData)
+                      .filter(key => !['id', 'created_at', 'sourceTable', 'modificado_crm'].includes(key))
+                      .map((key) => {
+                        const isObservaciones = key.includes('observaciones') || key.includes('detalle');
+                        const isDate = key.includes('fecha');
+                        const isNeverEditable = key.toLowerCase().includes('nro') || 
+                                              key.toLowerCase().includes('ingreso') || 
+                                              key.toLowerCase().includes('control') ||
+                                              key.toLowerCase() === 'nivel' ||
+                                              key.toLowerCase() === 'n';
+                        let label = key.replace(/_/g, ' ').toUpperCase();
+                        if (label === 'N' || label === 'NRO') label = 'NID';
+                        const displayValue = isDate ? (formData[key]?.split('T')[0] || '---') : (formData[key] || '---');
 
-              <section>
-                <h3 className="text-xs font-black uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Estado del Caso
-                </h3>
-                <div className="space-y-4">
-                  <div className={cn(
-                    "p-4 rounded-2xl border flex items-center justify-between",
-                    mainRecord?.estatus?.toLowerCase().includes('cerrado') ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
-                  )}>
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-on-surface-variant opacity-60">Estatus Actual</p>
-                      <p className={cn(
-                        "text-lg font-black uppercase italic",
-                        mainRecord?.estatus?.toLowerCase().includes('cerrado') ? "text-green-700" : "text-amber-700"
-                      )}>
-                        {mainRecord?.estatus}
-                      </p>
-                    </div>
-                    <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center",
-                      mainRecord?.estatus?.toLowerCase().includes('cerrado') ? "bg-green-500 text-white" : "bg-amber-500 text-white"
-                    )}>
-                      {mainRecord?.estatus?.toLowerCase().includes('cerrado') ? <ShieldCheck /> : <Clock />}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-outline-variant">
-                      <p className="text-[9px] font-black uppercase text-outline mb-1">Garantía</p>
-                      <div className="flex items-center gap-2">
-                        {mainRecord?.garantia?.toLowerCase() === 'si' ? (
-                          <><ShieldCheck className="w-4 h-4 text-green-600" /><span className="text-xs font-bold text-green-700">SI</span></>
-                        ) : (
-                          <><ShieldX className="w-4 h-4 text-red-500" /><span className="text-xs font-bold text-red-600">NO</span></>
-                        )}
+                        return (
+                          <tr key={key} className="group hover:bg-primary/5 transition-colors">
+                            <td className="px-8 py-4 text-[10px] font-black text-on-surface-variant/60 uppercase tracking-widest group-hover:text-primary transition-colors">
+                              {label}
+                            </td>
+                            <td className="px-8 py-3">
+                              {(!isEditing || isNeverEditable) ? (
+                                <span className={cn(
+                                  "text-xs font-bold block truncate",
+                                  isNeverEditable ? "text-on-surface-variant/40 italic" : "text-on-surface-variant"
+                                )}>
+                                  {displayValue}
+                                </span>
+                              ) : isObservaciones ? (
+                                <textarea 
+                                  value={formData[key] || ''}
+                                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                  className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none h-16 transition-all"
+                                />
+                              ) : (
+                                <input 
+                                  type="text" 
+                                  value={isDate ? (formData[key]?.split('T')[0] || '') : (formData[key] || '')}
+                                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                  className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeTab === 'history' ? (
+            <div className="space-y-4">
+              {history.map((record, index) => (
+                <div 
+                  key={index}
+                  className="group bg-white border border-outline-variant rounded-2xl p-6 hover:border-primary/50 hover:bg-primary/[0.02] transition-all relative"
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  
+                  {/* Header of history item */}
+                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-dashed border-outline-variant">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                        {history.length - index}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-outline tracking-widest leading-none mb-1">Base de Datos</p>
+                        <p className="text-sm font-black text-on-surface uppercase tracking-tight">{record.sourceTable.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
-                    <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-outline-variant">
-                      <p className="text-[9px] font-black uppercase text-outline mb-1">Nivel</p>
-                      <p className="text-xs font-bold text-on-surface">{mainRecord?.nivel || 'N/A'}</p>
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border shadow-sm",
+                      record.estatus?.toLowerCase().includes('cerrado') ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"
+                    )}>
+                      {record.estatus || 'SIN ESTATUS'}
+                    </div>
+                  </div>
+
+                  {/* Grid of details */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Fecha Ingreso
+                      </p>
+                      <p className="text-xs font-bold text-on-surface">{record.fecha?.split('T')[0] || '-'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Fecha Final
+                      </p>
+                      <p className="text-xs font-bold text-on-surface">{record.fecha_final || '-'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> Categoría
+                      </p>
+                      <p className="text-xs font-bold text-on-surface truncate">{record.categoria || record.categora || record.lote || '-'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" /> Garantía
+                      </p>
+                      <p className={cn(
+                        "text-xs font-black uppercase",
+                        record.garantia?.toLowerCase() === 'si' ? "text-green-600" : "text-red-500"
+                      )}>
+                        {record.garantia || 'NO'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <FileSpreadsheet className="w-3 h-3" /> Cotización
+                      </p>
+                      <p className="text-xs font-bold text-primary font-mono">{record.cotizacin || record.cotizacion || '-'}</p>
+                    </div>
+                    <div className="md:col-span-3 space-y-1">
+                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
+                        <Info className="w-3 h-3" /> Observaciones
+                      </p>
+                      <p className="text-xs text-on-surface-variant italic leading-relaxed line-clamp-2">
+                        {record.observaciones || 'Sin observaciones.'}
+                      </p>
                     </div>
                   </div>
                 </div>
-              </section>
-
-              {/* Row 2: Cliente & Observaciones */}
-              <section>
-                <h3 className="text-xs font-black uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Cliente / Comercio
-                </h3>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-outline-variant space-y-4 h-[120px] flex flex-col justify-center">
-                  <p className="text-base font-bold text-on-surface leading-tight">{mainRecord?.razon_social || mainRecord?.razn_social || 'Desconocido'}</p>
-                  <p className="text-xs font-medium text-on-surface-variant flex items-center gap-2">
-                    <span className="bg-slate-200 px-1.5 py-0.5 rounded uppercase font-bold text-[10px]">RIF:</span>
-                    {mainRecord?.rif || 'N/A'}
-                  </p>
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-xs font-black uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
-                  <History className="w-4 h-4" />
-                  Observaciones
-                </h3>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-outline-variant h-[120px] overflow-y-auto custom-scrollbar">
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
-                    {mainRecord?.observaciones || 'No hay observaciones registradas para este ingreso.'}
-                  </p>
-                </div>
-              </section>
-            </div>
-          ) : activeTab === 'edit' ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
-                <Info className="w-5 h-5 text-amber-600 mt-0.5" />
-                <div>
-                  <p className="text-xs font-bold text-amber-800 uppercase tracking-tight">Modo Edición</p>
-                  <p className="text-xs text-amber-700 font-medium">Estás editando el registro actual del aliado {currentSlug.toUpperCase()}. Todos los campos son editables.</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.keys(mainRecord || {})
-                  .filter(key => !['id', 'created_at', 'sourceTable', 'modificado_crm'].includes(key))
-                  .map(key => (
-                    <div key={key} className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase text-outline ml-1">{key.replace(/_/g, ' ')}</label>
-                      <input 
-                        type="text"
-                        value={formData[key] || ''}
-                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                        className="bg-slate-50 border border-outline-variant rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all hover:bg-white"
-                      />
-                    </div>
-                  ))}
-              </div>
-
-              <div className="pt-6 border-t border-outline-variant flex justify-end gap-4">
-                <button 
-                  onClick={() => setActiveTab('info')}
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-slate-100 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-primary text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {saving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
+              ))}
             </div>
           ) : activeTab === 'report' ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-3xl mx-auto">
@@ -654,94 +653,55 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
                   </button>
                 </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {history.map((record, index) => (
-                <div 
-                  key={index}
-                  className="group bg-white border border-outline-variant rounded-2xl p-6 hover:border-primary/50 hover:bg-primary/[0.02] transition-all relative"
-                >
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  
-                  {/* Header of history item */}
-                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-dashed border-outline-variant">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
-                        {history.length - index}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-outline tracking-widest leading-none mb-1">Base de Datos</p>
-                        <p className="text-sm font-black text-on-surface uppercase tracking-tight">{record.sourceTable.replace(/_/g, ' ')}</p>
-                      </div>
-                    </div>
-                    <div className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border shadow-sm",
-                      record.estatus?.toLowerCase().includes('cerrado') ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"
-                    )}>
-                      {record.estatus || 'SIN ESTATUS'}
-                    </div>
-                  </div>
-
-                  {/* Grid of details */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Fecha Ingreso
-                      </p>
-                      <p className="text-xs font-bold text-on-surface">{record.fecha?.split('T')[0] || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Fecha Final
-                      </p>
-                      <p className="text-xs font-bold text-on-surface">{record.fecha_final || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Tag className="w-3 h-3" /> Categoría
-                      </p>
-                      <p className="text-xs font-bold text-on-surface truncate">{record.categoria || record.categora || record.lote || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Garantía
-                      </p>
-                      <p className={cn(
-                        "text-xs font-black uppercase",
-                        record.garantia?.toLowerCase() === 'si' ? "text-green-600" : "text-red-500"
-                      )}>
-                        {record.garantia || 'NO'}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <FileSpreadsheet className="w-3 h-3" /> Cotización
-                      </p>
-                      <p className="text-xs font-bold text-primary font-mono">{record.cotizacin || record.cotizacion || '-'}</p>
-                    </div>
-                    <div className="md:col-span-3 space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Info className="w-3 h-3" /> Observaciones
-                      </p>
-                      <p className="text-xs text-on-surface-variant italic leading-relaxed line-clamp-2">
-                        {record.observaciones || 'Sin observaciones.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-slate-50 border-t border-outline-variant flex justify-end no-print">
-          <button 
-            onClick={onClose}
-            className="bg-on-surface text-surface px-8 py-2.5 rounded-xl font-bold uppercase tracking-widest text-xs hover:opacity-90 transition-all"
-          >
-            Cerrar Expediente
-          </button>
+        <div className="px-8 py-6 bg-slate-50 border-t border-outline-variant flex justify-end gap-3 no-print">
+          {(activeTab === 'info' || activeTab === 'edit') && (
+            <>
+              {isEditing ? (
+                <button 
+                  onClick={async () => {
+                    await handleSave();
+                    setIsEditing(false);
+                  }}
+                  disabled={saving}
+                  className="bg-primary text-white px-10 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  Guardar
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-primary/10 text-primary px-10 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  Editar
+                </button>
+              )}
+            </>
+          )}
+          {isEditing && (
+            <button 
+              onClick={() => {
+                setFormData(mainRecord);
+                setIsEditing(false);
+              }}
+              className="bg-slate-200 text-on-surface-variant px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all"
+            >
+              Cancelar
+            </button>
+          )}
+          {!isEditing && (
+            <button 
+              onClick={onClose}
+              className="bg-on-surface text-surface px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+            >
+              Cerrar
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -450,7 +450,7 @@ export default function AllyPage() {
                           isNumber ? "w-[60px]" : "w-[150px]"
                         )}>
                           <div className="flex items-center justify-between">
-                            {header.replace(/_/g, ' ')}
+                            {(header.toLowerCase() === 'n' || header.toLowerCase() === 'nro') ? 'NID' : header.replace(/_/g, ' ').toUpperCase()}
                             <ArrowUpDown className="w-2.5 h-2.5 opacity-30" />
                           </div>
                         </th>

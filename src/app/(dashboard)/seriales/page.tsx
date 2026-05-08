@@ -32,14 +32,14 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
           'banco-activo': 'bactivo'
         }
         const tableName = tableMapping[slug] || slug.replace(/-/g, '_')
-        
+
         // Determinar columnas según el aliado
         let loteCol = 'categoria'
         let nameCol = 'razon_social'
-        
+
         if (slug === 'platco' || slug === 'platco-pos') loteCol = 'lote'
         else if (['banplus', 'ccr', 'instapago'].includes(slug)) loteCol = 'categora'
-        
+
         if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(slug)) nameCol = 'razn_social'
 
         let query = supabase
@@ -56,7 +56,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
         if (mes) {
           query = query.or(`fecha.ilike.%-${mes}-%,fecha.ilike.%/${mes}/%`)
         }
-        
+
         if (search) {
           query = query.or(`${loteCol}.ilike.*${search}*,${nameCol}.ilike.*${search}*,serial.ilike.*${search}*,serial_de_remplazo.ilike.*${search}*`)
         }
@@ -64,7 +64,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
         const { data: tableData, error } = await query.order('fecha', { ascending: false })
 
         if (error) throw error
-        
+
         setData(tableData || [])
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -98,15 +98,15 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
     const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Seriales")
-    
+
     // Auto-ajustar anchos de columna básicos
     const wscols = [
-      {wch: 5},  // N#
-      {wch: 12}, // Fecha
-      {wch: 18}, // Serial
-      {wch: 40}, // Razón Social
-      {wch: 12}, // Estatus
-      {wch: 10}  // Garantía
+      { wch: 5 },  // N#
+      { wch: 12 }, // Fecha
+      { wch: 18 }, // Serial
+      { wch: 40 }, // Razón Social
+      { wch: 12 }, // Estatus
+      { wch: 10 }  // Garantía
     ]
     worksheet['!cols'] = wscols
 
@@ -155,7 +155,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
       <div className="max-w-6xl mx-auto pb-20">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               href={`/aliados/${params.slug}`}
               className="p-2 hover:bg-white rounded-full border border-transparent hover:border-outline-variant transition-all"
             >
@@ -171,9 +171,9 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
               </p>
             </div>
           </div>
-          
+
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={exportToExcel}
               disabled={data.length === 0}
               className="flex items-center gap-2 bg-white border border-outline-variant text-on-surface px-6 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all disabled:opacity-50"
@@ -181,7 +181,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
               <Download className="w-4 h-4 text-green-600" />
               Exportar Excel
             </button>
-            <button 
+            <button
               onClick={copySerials}
               disabled={data.length === 0}
               className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all disabled:opacity-50"
@@ -214,8 +214,8 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
                   </thead>
                   <tbody className="divide-y divide-outline-variant">
                     {data.map((row, i) => (
-                      <tr 
-                        key={i} 
+                      <tr
+                        key={i}
                         onClick={() => {
                           setSelectedSerial(row.serial || row.serial_de_remplazo)
                           setIsModalOpen(true)
@@ -266,7 +266,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
                   <Hash className="w-4 h-4" />
                   Seriales Filtrados (Texto)
                 </h3>
-                <button 
+                <button
                   onClick={copySerials}
                   className="text-[10px] font-black uppercase text-primary hover:underline"
                 >
@@ -274,7 +274,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
                 </button>
               </div>
               <div className="p-6">
-                <textarea 
+                <textarea
                   readOnly
                   value={data.map(row => row.serial || row.serial_de_remplazo).filter(Boolean).join('\n')}
                   className="w-full h-40 p-4 bg-slate-50 border border-outline-variant rounded-xl font-mono text-xs focus:ring-0 outline-none resize-none"
@@ -289,7 +289,7 @@ export default function SerialesPage({ searchParams }: { searchParams: Promise<a
         )}
       </div>
 
-      <TerminalDetailsModal 
+      <TerminalDetailsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         serial={selectedSerial}
