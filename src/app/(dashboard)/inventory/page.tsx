@@ -189,7 +189,7 @@ export default function InventoryPage() {
               </div>
               <div className="flex gap-2">
                 <button 
-                  onClick={fetchInventory}
+                  onClick={() => fetchInventory(true)}
                   className="p-2 hover:bg-primary/10 rounded-xl transition-all group border border-outline-variant/30"
                   title="Refrescar Inventario"
                 >

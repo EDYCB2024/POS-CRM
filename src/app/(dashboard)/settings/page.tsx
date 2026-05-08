@@ -232,7 +232,7 @@ export default function SettingsPage() {
                     <h2 className="font-black text-primary uppercase tracking-widest text-sm">Registro de Actividad Reciente</h2>
                   </div>
                   <button 
-                    onClick={fetchLogs}
+                    onClick={() => fetchLogs(true)}
                     className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-outline-variant"
                   >
                     <RefreshCw className={cn("w-4 h-4 text-primary", loading && "animate-spin")} />
@@ -310,7 +310,7 @@ export default function SettingsPage() {
                       Añadir Aliado
                     </button>
                     <button 
-                      onClick={fetchAllies}
+                      onClick={() => fetchAllies(true)}
                       className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-outline-variant"
                     >
                       <RefreshCw className={cn("w-4 h-4 text-primary", loadingAllies && "animate-spin")} />
@@ -426,7 +426,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={fetchUsers}
+                      onClick={() => fetchUsers(true)}
                       className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-outline-variant"
                     >
                       <RefreshCw className={cn("w-4 h-4 text-primary", loadingUsers && "animate-spin")} />
