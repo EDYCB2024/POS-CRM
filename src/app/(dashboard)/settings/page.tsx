@@ -16,26 +16,44 @@ import {
   Edit2,
   Save,
   X,
-  Plus
+  Plus,
+  Users as UsersIcon,
+  UserPlus,
+  UserCog,
+  Mail
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { cn } from "@/lib/utils";
 
+// Cache outside the component to persist settings data between remounts
+let cachedLogs: any[] | null = null;
+let cachedAllies: any[] | null = null;
+let cachedUsers: any[] | null = null;
+
 export default function SettingsPage() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies'>('activity');
+  const [logs, setLogs] = useState<any[]>(cachedLogs || []);
+  const [loading, setLoading] = useState(!cachedLogs);
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies' | 'users'>('activity');
   
   // Allies Management State
-  const [allies, setAllies] = useState<any[]>([]);
-  const [loadingAllies, setLoadingAllies] = useState(false);
+  const [allies, setAllies] = useState<any[]>(cachedAllies || []);
+  const [loadingAllies, setLoadingAllies] = useState(!cachedAllies);
   const [editingAllyId, setEditingAllyId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [isAddingAlly, setIsAddingAlly] = useState(false);
   const [newAlly, setNewAlly] = useState({ name: '', table_name: '', category: 'Aliados' });
+  
+  // Users Management State
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
+  const [loadingUsers, setLoadingUsers] = useState(!cachedUsers);
+  const [isAddingUser, setIsAddingUser] = useState(false);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (force: boolean = false) => {
+    if (!force && cachedLogs) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -45,7 +63,8 @@ export default function SettingsPage() {
         .limit(100);
       
       if (error) throw error;
-      setLogs(data || []);
+      cachedLogs = data || [];
+      setLogs(cachedLogs);
     } catch (err) {
       console.error('Error fetching logs:', err);
     } finally {
@@ -53,27 +72,59 @@ export default function SettingsPage() {
     }
   };
 
-  const fetchAllies = async () => {
+  const fetchAllies = async (force: boolean = false) => {
+    if (!force && cachedAllies) {
+      setLoadingAllies(false);
+      return;
+    }
     setLoadingAllies(true);
     try {
-      const { data, error } = await supabase
+      // 1. Fetch config
+      const { data: config, error: configError } = await supabase
         .from('allies_config')
         .select('*')
         .order('name', { ascending: true });
       
-      if (error) throw error;
+      if (configError) throw configError;
       
-      // Fetch counts for each ally table
-      const alliesWithCounts = await Promise.all((data || []).map(async (ally) => {
-        const { count } = await supabase.from(ally.table_name).select('*', { count: 'exact', head: true });
-        return { ...ally, count: count || 0 };
-      }));
+      // 2. Fetch all counts in ONE go using RPC
+      const { data: counts, error: countsError } = await supabase.rpc('get_all_table_counts');
+      if (countsError) throw countsError;
+
+      // Map counts to config
+      const alliesWithCounts = (config || []).map(ally => {
+        const countData = (counts || []).find((c: any) => c.table_name === ally.table_name);
+        return { ...ally, count: countData ? countData.row_count : 0 };
+      });
       
-      setAllies(alliesWithCounts);
+      cachedAllies = alliesWithCounts;
+      setAllies(cachedAllies);
     } catch (err) {
       console.error('Error fetching allies:', err);
     } finally {
       setLoadingAllies(false);
+    }
+  };
+
+  const fetchUsers = async (force: boolean = false) => {
+    if (!force && cachedUsers) {
+      setLoadingUsers(false);
+      return;
+    }
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      cachedUsers = data || [];
+      setUsers(cachedUsers);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -82,6 +133,8 @@ export default function SettingsPage() {
       fetchLogs();
     } else if (activeTab === 'allies') {
       fetchAllies();
+    } else if (activeTab === 'users') {
+      fetchUsers();
     }
   }, [activeTab]);
 
@@ -149,6 +202,7 @@ export default function SettingsPage() {
             {[
               { id: 'profile', label: 'Mi Perfil', icon: User },
               { id: 'security', label: 'Seguridad', icon: Shield },
+              { id: 'users', label: 'Gestión de Usuarios', icon: UsersIcon },
               { id: 'allies', label: 'Gestión de Aliados', icon: Building2 },
               { id: 'activity', label: 'Activity Log', icon: History },
             ].map((tab) => (
@@ -358,6 +412,83 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'users' && (
+              <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <UsersIcon className="w-5 h-5 text-primary" />
+                    <h2 className="font-black text-primary uppercase tracking-widest text-sm">Gestión de Usuarios del Sistema</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={fetchUsers}
+                      className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-outline-variant"
+                    >
+                      <RefreshCw className={cn("w-4 h-4 text-primary", loadingUsers && "animate-spin")} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[600px]">
+                  <div className="grid grid-cols-1 gap-4">
+                    {loadingUsers ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <div key={i} className="h-24 bg-slate-50 animate-pulse rounded-2xl border border-outline-variant/30" />
+                      ))
+                    ) : users.length === 0 ? (
+                      <div className="py-20 text-center bg-slate-50/50 rounded-3xl border border-dashed border-outline-variant">
+                        <UserCog className="w-12 h-12 text-outline mx-auto mb-4 opacity-20" />
+                        <p className="text-sm font-bold text-outline uppercase tracking-widest">No hay otros usuarios registrados</p>
+                        <p className="text-[10px] text-outline mt-2">Los usuarios aparecerán aquí una vez que se registren en el sistema.</p>
+                      </div>
+                    ) : (
+                      users.map((user) => (
+                        <div key={user.id} className="bg-white p-5 rounded-3xl border border-outline-variant flex items-center justify-between hover:border-primary/30 transition-all shadow-sm group">
+                          <div className="flex items-center gap-5">
+                            <div className="w-12 h-12 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary font-black text-lg">
+                              {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-black text-on-surface uppercase tracking-tight">{user.full_name || 'Usuario sin nombre'}</h3>
+                              <div className="flex items-center gap-3 mt-1">
+                                <p className="text-[10px] font-bold text-outline uppercase tracking-widest flex items-center gap-1.5">
+                                  <Mail className="w-3 h-3" />
+                                  {user.email}
+                                </p>
+                                <span className="w-1 h-1 bg-outline-variant rounded-full"></span>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border",
+                                  user.role === 'admin' ? "bg-red-50 text-red-600 border-red-100" : "bg-primary/5 text-primary border-primary/10"
+                                )}>
+                                  {user.role}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                user.status === 'active' ? "text-green-500" : "text-red-500"
+                              )}>
+                                {user.status === 'active' ? '● Activo' : '○ Inactivo'}
+                              </p>
+                              <p className="text-[9px] font-bold text-outline uppercase tracking-widest mt-1">
+                                Miembro desde {new Date(user.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <button className="p-2 hover:bg-slate-100 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                              <Edit2 className="w-4 h-4 text-outline" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

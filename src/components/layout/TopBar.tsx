@@ -1,12 +1,18 @@
 'use client'
 
-import { Bell } from 'lucide-react'
+import { Bell, LogOut } from 'lucide-react'
 
 interface TopBarProps {
   title: string
 }
 
 export function TopBar({ title }: TopBarProps) {
+  const handleLogout = () => {
+    // Eliminar cookie de sesión (mock)
+    document.cookie = "auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    window.location.href = '/login'
+  }
+
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-outline-variant flex justify-between items-center w-full px-6 py-3">
       <div className="flex items-center gap-4">
@@ -27,6 +33,14 @@ export function TopBar({ title }: TopBarProps) {
             <div className="h-9 w-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-black text-xs shadow-inner">
               AD
             </div>
+            
+            <button 
+              onClick={handleLogout}
+              className="ml-2 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 group"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            </button>
           </div>
         </div>
       </div>

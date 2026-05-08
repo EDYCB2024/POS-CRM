@@ -6,12 +6,15 @@ import { cn } from "@/lib/utils"
 import { supabase } from '@/lib/supabase'
 
 
+// Cache outside the component to persist inventory between remounts
+let cachedInventory: any[] | null = null;
+
 export default function InventoryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [data, setData] = useState<any[]>([])
+  const [data, setData] = useState<any[]>(cachedInventory || [])
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cachedInventory)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({
@@ -27,7 +30,13 @@ export default function InventoryPage() {
     stock: ''
   })
 
-  const fetchInventory = async () => {
+  const fetchInventory = async (force: boolean = false) => {
+    // Return early if we have cached data and not forcing
+    if (!force && cachedInventory) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true)
       const { data: inventoryData, error: dbError } = await supabase
@@ -36,7 +45,9 @@ export default function InventoryPage() {
         .order('codigo', { ascending: true })
 
       if (dbError) throw dbError
-      setData(inventoryData || [])
+      
+      cachedInventory = inventoryData || [];
+      setData(cachedInventory)
     } catch (err: any) {
       console.error('Error fetching inventory:', err)
       setError(err.message)

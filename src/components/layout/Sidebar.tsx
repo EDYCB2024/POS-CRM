@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ListChecks
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { useSidebar } from '@/context/SidebarContext'
 
@@ -45,6 +46,10 @@ const inventory = [
   { name: 'Movimientos', href: '/inventory/movements', icon: ListChecks },
 ]
 
+// Cache outside the component to persist between remounts
+let cachedAliados: any[] | null = null;
+let cachedOtros: any[] | null = null;
+
 export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
@@ -53,11 +58,15 @@ export function Sidebar() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(true)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
   
-  const [dynamicAliados, setDynamicAliados] = useState<any[]>([])
-  const [dynamicOtros, setDynamicOtros] = useState<any[]>([])
+  const [dynamicAliados, setDynamicAliados] = useState<any[]>(cachedAliados || [])
+  const [dynamicOtros, setDynamicOtros] = useState<any[]>(cachedOtros || [])
+  const router = useRouter()
 
   useEffect(() => {
     const fetchAllies = async () => {
+      // Return early if we have cached data
+      if (cachedAliados && cachedOtros) return;
+
       const { data, error } = await supabase
         .from('allies_config')
         .select('*')
@@ -65,8 +74,14 @@ export function Sidebar() {
         .order('name', { ascending: true })
 
       if (data) {
-        setDynamicAliados(data.filter(a => a.category === 'Aliados'))
-        setDynamicOtros(data.filter(a => a.category === 'Otros'))
+        const aliados = data.filter(a => a.category === 'Aliados');
+        const otros = data.filter(a => a.category === 'Otros');
+        
+        cachedAliados = aliados;
+        cachedOtros = otros;
+        
+        setDynamicAliados(aliados)
+        setDynamicOtros(otros)
       }
     }
     fetchAllies()

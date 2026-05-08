@@ -16,6 +16,12 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
+// Cache outside the component to persist dashboard stats between remounts
+let cachedStats: {
+  key: string;
+  data: any;
+} | null = null;
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -38,6 +44,7 @@ export default function DashboardPage() {
   ];
 
   const aggregateBy = (data: any[], key: string) => {
+    if (!data || data.length === 0) return [];
     const counts = data.reduce((acc: any, item: any) => {
       const val = item[key] || 'DESCONOCIDO';
       acc[val] = (acc[val] || 0) + 1;
@@ -48,58 +55,45 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   };
 
-  const fetchStats = async () => {
+  const fetchStats = async (force: boolean = false) => {
+    const cacheKey = `${selectedDate.toISOString().split('T')[0]}-${selectedMonth}-${selectedYear}`;
+    
+    // Use cache if available and not forcing a refresh
+    if (!force && cachedStats && cachedStats.key === cacheKey) {
+      const { global_total, day_data, month_data, year_data } = cachedStats.data;
+      setTotalGlobal(global_total);
+      setDayStats({ total: day_data.length, allies: aggregateBy(day_data, 'table'), models: aggregateBy(day_data, 'modelo') });
+      setMonthStats({ total: month_data.length, allies: aggregateBy(month_data, 'table'), models: aggregateBy(month_data, 'modelo') });
+      setYearStats({ total: year_data.length, allies: aggregateBy(year_data, 'table'), models: aggregateBy(year_data, 'modelo') });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Formatear fechas para SQL
-      const dayStr = selectedDate.toISOString().split('T')[0];
-      const monthStart = `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`;
-      const yearStart = `${selectedYear}-01-01`;
+      // Call consolidated RPC (1 request instead of 56)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_pos_dashboard_stats', {
+        p_selected_date: selectedDate.toISOString().split('T')[0],
+        p_selected_month: selectedMonth + 1,
+        p_selected_year: selectedYear
+      });
 
-      const fetchData = async (startDate: string, endDate?: string) => {
-        let results: any[] = [];
-        for (const table of allyTables) {
-          let query = supabase.from(table).select('modelo, created_at');
-          if (endDate) {
-            query = query.gte('created_at', startDate).lt('created_at', endDate);
-          } else {
-            // Para el día, comparamos con la fecha exacta del created_at truncada
-            query = query.gte('created_at', startDate + 'T00:00:00').lt('created_at', startDate + 'T23:59:59');
-          }
-          
-          const { data } = await query;
-          if (data) {
-            results = [...results, ...data.map(item => ({ ...item, table }))];
-          }
-        }
-        return results;
-      };
+      if (rpcError) throw rpcError;
 
-      // Fetch Total Global (all rows across all tables)
-      let globalCount = 0;
-      for (const table of allyTables) {
-        const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-        globalCount += count || 0;
+      if (rpcData) {
+        const { global_total, day_data, month_data, year_data } = rpcData;
+        
+        // Update state
+        setTotalGlobal(global_total);
+        setDayStats({ total: day_data.length, allies: aggregateBy(day_data, 'table'), models: aggregateBy(day_data, 'modelo') });
+        setMonthStats({ total: month_data.length, allies: aggregateBy(month_data, 'table'), models: aggregateBy(month_data, 'modelo') });
+        setYearStats({ total: year_data.length, allies: aggregateBy(year_data, 'table'), models: aggregateBy(year_data, 'modelo') });
+
+        // Save to cache
+        cachedStats = { key: cacheKey, data: rpcData };
       }
-      setTotalGlobal(globalCount);
-
-      // Fetch Day
-      const dayData = await fetchData(dayStr);
-      setDayStats({ total: dayData.length, allies: aggregateBy(dayData, 'table'), models: aggregateBy(dayData, 'modelo') });
-
-      // Fetch Month
-      const nextMonthDate = new Date(selectedYear, selectedMonth + 1, 1);
-      const nextMonth = nextMonthDate.toISOString().split('T')[0];
-      const monthData = await fetchData(monthStart, nextMonth);
-      setMonthStats({ total: monthData.length, allies: aggregateBy(monthData, 'table'), models: aggregateBy(monthData, 'modelo') });
-
-      // Fetch Year
-      const nextYear = `${selectedYear + 1}-01-01`;
-      const yearData = await fetchData(yearStart, nextYear);
-      setYearStats({ total: yearData.length, allies: aggregateBy(yearData, 'table'), models: aggregateBy(yearData, 'modelo') });
-
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching stats via RPC:', error);
     } finally {
       setLoading(false);
     }

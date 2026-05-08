@@ -20,7 +20,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FilterDropdown } from "@/components/ui/FilterDropdown";
 import { ShieldCheck, ShieldX } from 'lucide-react';
 
@@ -39,73 +39,65 @@ const terminals = [
   { id: "TRM-5501", version: "V3.2.1 Stable", location: "Eastside Market - Aisle 3", status: "Maintenance", lastSync: "2 hours ago", warranty: "no" },
 ];
 
+// Cache outside the component to persist terminals data between remounts
+let cachedTerminalsData: {
+  total: number;
+  recent: any[];
+} | null = null;
+
 export default function TerminalsPage() {
   const [warrantyFilter, setWarrantyFilter] = useState<string>('');
   const [exporting, setExporting] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [recentTerminals, setRecentTerminals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!cachedTerminalsData);
+  const [recentTerminals, setRecentTerminals] = useState<any[]>(cachedTerminalsData?.recent || []);
   const [statsData, setStatsData] = useState({
-    total: 0,
-    active: 0,
-    alerts: 0
+    total: cachedTerminalsData?.total || 0,
+    active: Math.floor((cachedTerminalsData?.total || 0) * 0.96),
+    alerts: Math.floor((cachedTerminalsData?.total || 0) * 0.04)
   });
 
-  const fetchRealData = async () => {
+  const fetchRealData = async (force: boolean = false) => {
+    if (!force && cachedTerminalsData) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const tables = [
-        'vatc', 'banplus', 'ccr', 'instapago', 'platco', 'platco_pos',
-        'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-        'poscom', 'paytech', 'bestpay', 'bancrecer', 'delsur', 'otros'
-      ];
-
-      // 1. Fetch counts and recent items from all tables
-      const results = await Promise.all(
-        tables.map(async (table) => {
-          const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-          const { data } = await supabase
-            .from(table)
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(10);
-          
-          return {
-            count: count || 0,
-            recent: (data || []).map(item => ({ ...item, sourceTable: table }))
-          };
-        })
-      );
-
-      // 2. Aggregate stats
-      const total = results.reduce((acc, res) => acc + res.count, 0);
+      // Use consolidated RPC (1 request instead of 32)
+      const { data, error } = await supabase.rpc('get_terminals_summary', { p_limit: 10 });
       
-      // Combine all recent and sort by date
-      const allRecent = results
-        .flatMap(res => res.recent)
-        .sort((a, b) => {
-          const dateA = new Date(a.created_at || a.fecha).getTime();
-          const dateB = new Date(b.created_at || b.fecha).getTime();
-          return dateB - dateA;
-        })
-        .slice(0, 10);
+      if (error) throw error;
 
-      setStatsData({
-        total,
-        active: Math.floor(total * 0.96), // Simulated for now as we don't have real-time ping
-        alerts: Math.floor(total * 0.04)
-      });
-      setRecentTerminals(allRecent);
+      if (data) {
+        const { total_count, recent_terminals } = data;
+        
+        // Transform keys if needed (source_table vs sourceTable)
+        const formattedRecent = recent_terminals.map((t: any) => ({
+          ...t,
+          sourceTable: t.source_table // Map snake_case from SQL to camelCase used in UI
+        }));
 
+        setStatsData({
+          total: total_count,
+          active: Math.floor(total_count * 0.96),
+          alerts: Math.floor(total_count * 0.04)
+        });
+        setRecentTerminals(formattedRecent);
+        
+        // Save to cache
+        cachedTerminalsData = { total: total_count, recent: formattedRecent };
+      }
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
+      console.error('Error fetching terminals summary:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchRealData();
-  });
+  }, []);
 
   const stats = [
     { label: "Total Terminales", value: statsData.total.toString(), change: "Sincronizado", color: "bg-secondary-container", icon: Smartphone, iconColor: "text-on-secondary-container" },
