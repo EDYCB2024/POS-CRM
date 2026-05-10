@@ -37,7 +37,7 @@ interface TerminalDetailsModalProps {
 const TABLE_SCHEMAS: Record<string, string[]> = {
   vatc: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "factura", "informe", "ingreso", "garantia", "informes", "categoria", "cotizacin", "fecha_final", "procesadora", "razon_social", "razn_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo", "repuesto__servicio_1", "repuesto__servicio_2", "repuesto__servicio_3"],
   banplus: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
-  ccr: ["serial", "n", "ne", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo", "repuesto__servicio_1", "repuesto__servicio_2", "repuesto__servicio_3"],
+  ccr: ["serial", "n", "ne", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo", "repuesto__servicio_1", "repuesto__servicio_2", "repuesto__servicio_3"],
   instapago: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
   poscom: ["n", "rif", "fecha", "nivel", "aliado", "modelo", "serial", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
   exterior: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
@@ -84,10 +84,8 @@ export function TerminalDetailsModal({
   const reportRef = useRef<HTMLDivElement>(null)
 
   const tableMapping: Record<string, string> = {
-    'del-sur': 'delsur',
-    'pos-comercial': 'poscom',
-    'token-pagos': 'tokenp',
-    'banco-activo': 'bactivo'
+    'banco-activo': 'bactivo',
+    'credicard': 'ccr'
   }
   const targetTableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
 

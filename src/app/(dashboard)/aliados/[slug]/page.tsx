@@ -65,7 +65,8 @@ export default function AllyPage() {
         'del-sur': 'delsur',
         'pos-comercial': 'poscom',
         'token-pagos': 'tokenp',
-        'banco-activo': 'bactivo'
+        'banco-activo': 'bactivo',
+        'credicard': 'ccr'
       }
       const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
       
@@ -89,9 +90,9 @@ export default function AllyPage() {
           nameCol = possibleNameCols.find(c => columns.includes(c)) || 'razon_social'
         } else {
           if (currentSlug === 'platco' || currentSlug === 'platco-pos') loteCol = 'lote'
-          else if (['banplus', 'ccr', 'instapago'].includes(currentSlug)) loteCol = 'categora'
+          else if (['banplus', 'ccr', 'credicard', 'instapago'].includes(currentSlug)) loteCol = 'categora'
           
-          if (['banplus', 'ccr', 'instapago', 'platco', 'platco-pos'].includes(currentSlug)) nameCol = 'razn_social'
+          if (['banplus', 'ccr', 'credicard', 'instapago', 'platco', 'platco-pos'].includes(currentSlug)) nameCol = 'razn_social'
         }
 
         query = query.or(`${loteCol}.ilike.*${searchTerm}*,${nameCol}.ilike.*${searchTerm}*,serial.ilike.*${searchTerm}*,serial_de_remplazo.ilike.*${searchTerm}*`)
@@ -112,7 +113,12 @@ export default function AllyPage() {
       setData(tableData || [])
       setTotalCount(count || 0)
       if (tableData && tableData.length > 0) {
-        const allCols = Object.keys(tableData[0]).filter(h => !['id', 'created_at', 'serial_id', 'modificado_crm'].includes(h))
+        const allCols = Object.keys(tableData[0]).filter(h => {
+          if (['id', 'created_at', 'serial_id', 'modificado_crm'].includes(h)) return false;
+          // Si existen ambas versiones de razon social, ocultar la que no tiene acento
+          if (h === 'razon_social' && Object.keys(tableData[0]).includes('razn_social')) return false;
+          return true;
+        })
         
         const globalOrder = [
           'n', 'nro', 'ne',
@@ -170,7 +176,8 @@ export default function AllyPage() {
       'del-sur': 'delsur',
       'pos-comercial': 'poscom',
       'token-pagos': 'tokenp',
-      'banco-activo': 'bactivo'
+      'banco-activo': 'bactivo',
+      'credicard': 'ccr'
     }
     const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
     const fileName = `Aliado_${currentSlug.toUpperCase()}_${new Date().toISOString().split('T')[0]}.xlsx`

@@ -26,34 +26,28 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { cn } from "@/lib/utils";
 
-// Cache outside the component to persist settings data between remounts
-let cachedLogs: any[] | null = null;
-let cachedAllies: any[] | null = null;
-let cachedUsers: any[] | null = null;
+// Removed module-level caches to ensure data freshness after updates
+
 
 export default function SettingsPage() {
-  const [logs, setLogs] = useState<any[]>(cachedLogs || []);
-  const [loading, setLoading] = useState(!cachedLogs);
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies' | 'users'>('activity');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies' | 'users'>('profile');
   
   // Allies Management State
-  const [allies, setAllies] = useState<any[]>(cachedAllies || []);
-  const [loadingAllies, setLoadingAllies] = useState(!cachedAllies);
+  const [allies, setAllies] = useState<any[]>([]);
+  const [loadingAllies, setLoadingAllies] = useState(true);
   const [editingAllyId, setEditingAllyId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [isAddingAlly, setIsAddingAlly] = useState(false);
   const [newAlly, setNewAlly] = useState({ name: '', table_name: '', category: 'Aliados' });
   
   // Users Management State
-  const [users, setUsers] = useState<any[]>(cachedUsers || []);
-  const [loadingUsers, setLoadingUsers] = useState(!cachedUsers);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [isAddingUser, setIsAddingUser] = useState(false);
 
   const fetchLogs = async (force: boolean = false) => {
-    if (!force && cachedLogs) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -63,8 +57,7 @@ export default function SettingsPage() {
         .limit(100);
       
       if (error) throw error;
-      cachedLogs = data || [];
-      setLogs(cachedLogs);
+      setLogs(data || []);
     } catch (err) {
       console.error('Error fetching logs:', err);
     } finally {
@@ -73,10 +66,6 @@ export default function SettingsPage() {
   };
 
   const fetchAllies = async (force: boolean = false) => {
-    if (!force && cachedAllies) {
-      setLoadingAllies(false);
-      return;
-    }
     setLoadingAllies(true);
     try {
       // 1. Fetch config
@@ -97,8 +86,7 @@ export default function SettingsPage() {
         return { ...ally, count: countData ? countData.row_count : 0 };
       });
       
-      cachedAllies = alliesWithCounts;
-      setAllies(cachedAllies);
+      setAllies(alliesWithCounts);
     } catch (err) {
       console.error('Error fetching allies:', err);
     } finally {
@@ -107,10 +95,6 @@ export default function SettingsPage() {
   };
 
   const fetchUsers = async (force: boolean = false) => {
-    if (!force && cachedUsers) {
-      setLoadingUsers(false);
-      return;
-    }
     setLoadingUsers(true);
     try {
       const { data, error } = await supabase
@@ -119,8 +103,7 @@ export default function SettingsPage() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      cachedUsers = data || [];
-      setUsers(cachedUsers);
+      setUsers(data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
@@ -147,7 +130,7 @@ export default function SettingsPage() {
       
       if (error) throw error;
       setEditingAllyId(null);
-      fetchAllies();
+      fetchAllies(true);
     } catch (err) {
       console.error('Error updating ally:', err);
       alert('Error al actualizar el nombre del aliado');
@@ -176,7 +159,7 @@ export default function SettingsPage() {
       
       setIsAddingAlly(false);
       setNewAlly({ name: '', table_name: '', category: 'Aliados' });
-      fetchAllies();
+      fetchAllies(true);
     } catch (err) {
       console.error('Error adding ally:', err);
       alert('Error al añadir aliado. Asegúrese de que el nombre de tabla sea único.');

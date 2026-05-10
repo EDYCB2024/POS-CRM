@@ -56,9 +56,8 @@ const helpCenter = [
   { name: 'Soporte Técnico', href: '/support', icon: MessageSquare },
 ]
 
-// Cache outside the component to persist between remounts
-let cachedAliados: any[] | null = null;
-let cachedOtros: any[] | null = null;
+// Module-level caches removed for data consistency
+
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -70,14 +69,13 @@ export function Sidebar() {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
 
-  const [dynamicAliados, setDynamicAliados] = useState<any[]>(cachedAliados || [])
-  const [dynamicOtros, setDynamicOtros] = useState<any[]>(cachedOtros || [])
+  const [dynamicAliados, setDynamicAliados] = useState<any[]>([])
+  const [dynamicOtros, setDynamicOtros] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
     const fetchAllies = async () => {
-      // Return early if we have cached data
-      if (cachedAliados && cachedOtros) return;
+
 
       const { data, error } = await supabase
         .from('allies_config')
@@ -88,9 +86,6 @@ export function Sidebar() {
       if (data) {
         const aliados = data.filter(a => a.category === 'Aliados');
         const otros = data.filter(a => a.category === 'Otros');
-
-        cachedAliados = aliados;
-        cachedOtros = otros;
 
         setDynamicAliados(aliados)
         setDynamicOtros(otros)
