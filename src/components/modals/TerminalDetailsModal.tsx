@@ -1,127 +1,95 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { supabase, logActivity } from '@/lib/supabase'
-import { 
-  X, 
-  Calendar, 
-  Hash, 
-  Tag, 
-  Clock, 
-  ShieldCheck, 
-  ShieldX, 
-  History, 
-  User, 
-  Info,
-  Loader2,
-  ChevronRight,
-  Monitor,
-  FileSpreadsheet,
-  Save,
-  Edit2,
+import React, { useState, useEffect, useRef } from "react"
+import {
+  X,
+  History,
   FileText,
+  Edit2,
+  Save,
   Printer,
-  ChevronDown
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+  CheckCircle2,
+  AlertCircle,
+  Hash,
+  User,
+  Calendar,
+  Building2,
+  Settings,
+  ShieldCheck,
+  Package,
+  Wrench,
+  Loader2,
+  ExternalLink
+} from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
 
 interface TerminalDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   serial: string
   currentSlug: string
+  isNew?: boolean
+  onSuccess?: () => void
+  initialData?: any
 }
 
-function EditableReportField({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) {
-  return (
-    <div className="flex flex-col border-b border-slate-200 pb-1.5 min-h-[36px] justify-end">
-      <span className="text-[9px] font-black uppercase text-outline tracking-wider leading-none mb-1">{label}</span>
-      <div className="relative">
-        <input 
-          type="text"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="..."
-          className="text-[11px] font-bold text-on-surface bg-transparent border-none outline-none w-full p-0 h-5 no-print"
-        />
-        <span className="print-only text-[11px] font-bold text-on-surface truncate">
-          {value || '---'}
-        </span>
-      </div>
-    </div>
-  )
-}
+const TABLE_SCHEMAS: Record<string, string[]> = {
+  vatc: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "factura", "informe", "ingreso", "garantia", "informes", "categoria", "cotizacin", "fecha_final", "procesadora", "razon_social", "razn_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo", "repuesto__servicio_1", "repuesto__servicio_2", "repuesto__servicio_3"],
+  banplus: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
+  ccr: ["serial", "n", "ne", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo", "repuesto__servicio_1", "repuesto__servicio_2", "repuesto__servicio_3"],
+  instapago: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  poscom: ["n", "rif", "fecha", "nivel", "aliado", "modelo", "serial", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
+  exterior: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  bancaribe: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
+  tokenp: ["n", "rif", "fecha", "nivel", "aliado", "modelo", "serial", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  bactivo: ["n", "rif", "fecha", "nivel", "aliado", "modelo", "serial", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  bancrecer: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  bestpay: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  delsur: ["serial", "n", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  paytech: ["serial", "n", "ne", "rif", "fecha", "nivel", "aliado", "modelo", "estatus", "informe", "ingreso", "categora", "garantia", "informe2", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"],
+  platco: ["serial", "nro", "rif", "lote", "fecha", "nivel", "aliado", "modelo", "estatus", "ingreso", "categora", "garantia", "column_26", "columna_7", "cotizacin", "columna_10", "fecha_final", "fecha_venta", "razn_social", "razon_social", "observacion_2", "observaciones", "estatus_del_caso", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3", "imei_1", "imei_2", "fecha_entrega"],
+  platco_pos: ["serial", "nro", "rif", "lote", "fecha", "nivel", "aliado", "modelo", "estatus", "ingreso", "categora", "garantia", "cotizacin", "fecha_final", "fecha_venta", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "repuesto__servicio", "serial_de_remplazo", "repuesto__servicio_2", "repuesto__servicio_3"],
+  otros: ["n", "ne", "rif", "fecha", "nivel", "aliado", "modelo", "serial", "estatus", "informe", "ingreso", "categora", "garantia", "informes", "cotizacin", "repuesto_1", "repuesto_2", "repuesto_3", "fecha_final", "razn_social", "razon_social", "observaciones", "estatus_del_caso", "falla_notificada", "serial_de_remplazo"]
+};
 
-function EditableReportArea({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) {
-  return (
-    <div className="flex flex-col min-h-[100px]">
-      <span className="text-[9px] font-black uppercase text-outline tracking-wider mb-2">{label}</span>
-      <div className="relative flex-1">
-        <textarea 
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Escriba las observaciones aquí..."
-          className="text-[11px] leading-relaxed text-on-surface-variant italic bg-transparent border-none outline-none w-full resize-none h-full p-0 no-print"
-        />
-        <div className="print-only text-[11px] leading-relaxed text-on-surface-variant italic whitespace-pre-wrap">
-          {value || 'Sin observaciones adicionales.'}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AccessoryToggle({ label, value, onChange }: { label: string, value: boolean, onChange: (val: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between py-1 border-b border-slate-50">
-      <span className="text-[10px] font-medium text-on-surface-variant">{label}</span>
-      <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg no-print">
-        <button 
-          onClick={() => onChange(true)}
-          className={cn(
-            "px-2 py-0.5 text-[8px] font-black rounded-md transition-all",
-            value ? "bg-primary text-white" : "text-outline hover:text-on-surface"
-          )}
-        >
-          SI
-        </button>
-        <button 
-          onClick={() => onChange(false)}
-          className={cn(
-            "px-2 py-0.5 text-[8px] font-black rounded-md transition-all",
-            !value ? "bg-red-500 text-white" : "text-outline hover:text-on-surface"
-          )}
-        >
-          NO
-        </button>
-      </div>
-      <span className="text-[10px] font-bold text-on-surface hidden print:block print-visible-report">
-        {value ? 'SI' : 'NO'}
-      </span>
-      <span className="text-[10px] font-bold text-on-surface hidden capture-visible">
-        {value ? 'SI' : 'NO'}
-      </span>
-    </div>
-  )
-}
-
-export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: TerminalDetailsModalProps) {
-  const [loading, setLoading] = useState(true)
+export function TerminalDetailsModal({
+  isOpen,
+  onClose,
+  serial,
+  currentSlug,
+  isNew = false,
+  onSuccess,
+  initialData
+}: TerminalDetailsModalProps) {
+  const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'edit' | 'report'>('info')
-  const [formData, setFormData] = useState<any>({})
+  const [formData, setFormData] = useState<any>(null)
   const [saving, setSaving] = useState(false)
+  const [selectedTable, setSelectedTable] = useState('')
+  const [alliesList, setAlliesList] = useState<{ name: string, table_name: string }[]>([])
+  const [defaultAliados, setDefaultAliados] = useState<any[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [selectedTecnico, setSelectedTecnico] = useState('TECNICO 1')
   const [accessories, setAccessories] = useState<Record<string, boolean>>({
-    'Caja original': false,
-    'Cargador': false,
-    'Batería': false,
-    'SIM card': false,
-    'Etiqueta de garantía': false,
-    'Forro declaración de cont.': false,
-    'Rollo térmico': false
+    caja: false,
+    cargador: false,
+    bateria: false,
+    tapa: false,
+    rollos: false,
+    base: false
   })
-  const [selectedTecnico, setSelectedTecnico] = useState('Eduardo Castillo')
+
+  const reportRef = useRef<HTMLDivElement>(null)
+
+  const tableMapping: Record<string, string> = {
+    'del-sur': 'delsur',
+    'pos-comercial': 'poscom',
+    'token-pagos': 'tokenp',
+    'banco-activo': 'bactivo'
+  }
+  const targetTableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
 
   const tecnicos = [
     'Eduardo Castillo',
@@ -130,21 +98,123 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
     'Eduardo mendieta'
   ]
 
+  // Fetch allies and defaults
   useEffect(() => {
-    if (!isOpen || !serial) return
+    async function fetchData() {
+      const { data: alliesData } = await supabase
+        .from('allies_config')
+        .select('name, table_name')
+        .eq('is_active', true)
+        .order('name')
 
-    async function fetchHistory() {
+      if (alliesData) setAlliesList(alliesData)
+
+      const { data: defaultsData } = await supabase
+        .from('default_aliados')
+        .select('*')
+
+      if (defaultsData) setDefaultAliados(defaultsData)
+    }
+
+    if (isOpen) {
+      fetchData()
+      if (isNew) {
+        setSelectedTable('')
+        setFormData(null)
+      }
+    } else {
+      // Reset when closing
+      setSelectedTable('')
+      setFormData(null)
+    }
+  }, [isOpen, !!isNew])
+
+  // DYNAMIC SCHEMA GENERATION
+  useEffect(() => {
+    if (isNew && selectedTable) {
+      const columns = TABLE_SCHEMAS[selectedTable] || ["serial", "razon_social", "rif", "modelo", "estatus", "garantia", "fecha", "observaciones"];
+      const newFormData: any = {};
+
+      columns.forEach(col => {
+        newFormData[col] = '';
+      });
+
+      // Pre-fill known data
+      if (newFormData.hasOwnProperty('serial')) newFormData.serial = serial || '';
+      if (newFormData.hasOwnProperty('fecha')) newFormData.fecha = new Date().toISOString().split('T')[0];
+      if (newFormData.hasOwnProperty('estatus')) newFormData.estatus = 'EN REVISION';
+      if (newFormData.hasOwnProperty('garantia')) newFormData.garantia = 'SI';
+      if (newFormData.hasOwnProperty('estatus_del_caso')) newFormData.estatus_del_caso = 'CASO ABIERTO';
+
+      // Ally specific defaults from default_aliados
+      const selectedAllyConfig = alliesList.find(a => a.table_name === selectedTable);
+      if (selectedAllyConfig) {
+        const defaultData = defaultAliados.find(d =>
+          d.aliado.toLowerCase() === selectedAllyConfig.name.toLowerCase()
+        );
+
+        if (defaultData) {
+          if (newFormData.hasOwnProperty('rif')) newFormData.rif = defaultData.rif === 'PENDIENTE' ? '' : defaultData.rif;
+          if (newFormData.hasOwnProperty('razon_social')) newFormData.razon_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+          if (newFormData.hasOwnProperty('razn_social')) newFormData.razn_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+          if (newFormData.hasOwnProperty('aliado')) newFormData.aliado = selectedAllyConfig.name;
+        }
+      }
+
+      setFormData(newFormData);
+      setIsEditing(true);
+      setActiveTab('edit');
+    } else if (isNew && !selectedTable) {
+      setFormData(null);
+    }
+  }, [selectedTable, isNew, alliesList, defaultAliados, serial]);
+
+  // Fetch Main Record first
+  useEffect(() => {
+    if (!isOpen || isNew || !serial) return
+
+    // If we already have the data, just set it and skip the fetch
+    if (initialData) {
+      setFormData({ ...initialData, sourceTable: targetTableName })
+      setHistory([{ ...initialData, sourceTable: targetTableName }])
+      setLoading(false)
+      return
+    }
+
+    async function fetchMainRecord() {
       setLoading(true)
       try {
-        const tables = [
-          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 'platco_pos',
-          'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-          'poscom', 'paytech', 'bestpay', 'bancrecer', 'delsur', 'otros'
-        ]
+        const { data, error } = await supabase
+          .from(targetTableName)
+          .select('*')
+          .or(`serial.eq.${serial},serial_de_remplazo.eq.${serial}`)
+          .maybeSingle()
 
-        // Search for the serial in all tables to build a complete history
+        if (data) {
+          setFormData({ ...data, sourceTable: targetTableName })
+          setHistory([{ ...data, sourceTable: targetTableName }])
+        }
+      } catch (err) {
+        console.error('Error fetching main record:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMainRecord()
+  }, [isOpen, serial, isNew, currentSlug])
+
+  // Fetch Full History ONLY when switching to history tab (Lazy Load)
+  useEffect(() => {
+    if (!isOpen || isNew || activeTab !== 'history' || !serial) return
+    if (history.length > 1) return // Already fetched full history
+
+    async function fetchFullHistory() {
+      setLoading(true)
+      try {
+        const tables = Object.keys(TABLE_SCHEMAS);
         const results = await Promise.all(
-          tables.map(table => 
+          tables.map(table =>
             supabase
               .from(table)
               .select('*')
@@ -158,138 +228,119 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
             sourceTable: tables[index]
           })))
           .sort((a, b) => {
-            // Sort by date descending
             const dateA = new Date(a.fecha || a.created_at).getTime()
             const dateB = new Date(b.fecha || b.created_at).getTime()
             return dateB - dateA
           })
 
-        setHistory(allRecords)
+        // Remove duplicates (same record from same table)
+        const uniqueRecords = Array.from(new Map(allRecords.map(item => [`${item.sourceTable}-${item.id}`, item])).values())
+        setHistory(uniqueRecords)
       } catch (err) {
-        console.error('Error fetching terminal history:', err)
+        console.error('Error fetching full terminal history:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchHistory()
-  }, [isOpen, serial])
+    fetchFullHistory()
+  }, [isOpen, serial, isNew, activeTab])
 
-  const tableMapping: Record<string, string> = {
-    'del-sur': 'delsur',
-    'pos-comercial': 'poscom',
-    'token-pagos': 'tokenp',
-    'banco-activo': 'bactivo'
-  }
-  const targetTableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
-  const mainRecord = history.find(r => r.sourceTable === targetTableName) || history[0]
-
+  // Set form data from current record
   useEffect(() => {
-    if (mainRecord && Object.keys(formData).length === 0) {
+    if (!isOpen || isNew) return
+
+    const mainRecord = history.find(r => r.sourceTable === targetTableName) || history[0]
+
+    if (mainRecord && !formData) {
       setFormData(mainRecord)
+      setIsEditing(false)
+      setActiveTab('info')
     }
-  }, [mainRecord, formData])
+  }, [isOpen, history, isNew, currentSlug, formData])
 
   if (!isOpen) return null
 
   const handleSave = async () => {
-    if (!serial) return
-    
     const confirmSave = window.confirm('¿Está seguro de que desea guardar los cambios en este expediente?')
     if (!confirmSave) return
+
+    if (isNew && !selectedTable) {
+      alert('Por favor seleccione un aliado de destino')
+      return
+    }
 
     setSaving(true)
     try {
       const { id, sourceTable, created_at, ...updateData } = formData
-      const { error } = await supabase
-        .from(sourceTable)
-        .update(updateData)
-        .eq('id', id)
 
+      let query;
+      if (isNew) {
+        query = supabase.from(selectedTable).insert([{
+          ...updateData,
+          modificado_crm: true
+        }])
+      } else {
+        query = supabase
+          .from(targetTableName)
+          .update({
+            ...updateData,
+            modificado_crm: true
+          })
+          .eq('id', id)
+      }
+
+      const { error } = await query
       if (error) throw error
-      
-      await logActivity('UPDATE_TERMINAL', 'TERMINAL', { 
-        serial: formData.serial, 
-        table: sourceTable,
-        changes: updateData 
-      })
-      
-      // Refresh history
-      const tables = [
-        'vatc', 'banplus', 'ccr', 'instapago', 'platco', 'platco_pos',
-        'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-        'poscom', 'paytech', 'bestpay', 'bancrecer', 'delsur', 'otros'
-      ]
-      const results = await Promise.all(
-        tables.map(table => 
-          supabase
-            .from(table)
-            .select('*')
-            .or(`serial.eq.${serial},serial_de_remplazo.eq.${serial}`)
-        )
-      )
-      const allRecords = results
-        .flatMap((res, index) => (res.data || []).map(item => ({
-          ...item,
-          sourceTable: tables[index]
-        })))
-        .sort((a, b) => new Date(b.fecha || b.created_at).getTime() - new Date(a.fecha || a.created_at).getTime())
-      
-      setHistory(allRecords)
-      setActiveTab('info')
+
+      alert(isNew ? 'Registro creado exitosamente' : 'Cambios guardados correctamente')
+      if (onSuccess) onSuccess()
+      if (isNew) onClose()
     } catch (err) {
-      console.error('Error updating record:', err)
+      console.error('Error saving changes:', err)
       alert('Error al guardar los cambios')
     } finally {
       setSaving(false)
     }
   }
 
-  const handlePrint = async () => {
-    // Save current data to localStorage for the print tab
-    const printData = {
+  const handlePrint = () => {
+    // Persist current state to localStorage for the print view
+    localStorage.setItem('print_report_data', JSON.stringify({
       formData,
       accessories,
       selectedTecnico,
-      serial
-    }
-    localStorage.setItem('print_report_data', JSON.stringify(printData))
-
-    await logActivity('PRINT_REPORT', 'REPORT', { 
-      serial, 
-      technician: selectedTecnico 
-    })
-
-    // Open the dedicated print page in a new tab
-    window.open('/print/informe', '_blank')
+      serial: formData.serial || formData.serial_de_remplazo
+    }))
+    window.open(`/print/informe?serial=${formData.serial || formData.serial_de_remplazo}`, '_blank')
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className={cn(
+      "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300",
+      isOpen ? "opacity-100 visible" : "opacity-0 invisible"
+    )}>
+      <div
+        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm no-print"
+        onClick={onClose}
+      />
 
-      <div 
-        className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={cn(
+        "bg-surface w-full max-w-5xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-hidden relative flex flex-col transition-all duration-500",
+        isOpen ? "translate-y-0 scale-100" : "translate-y-12 scale-95"
+      )}>
         {/* Header */}
-        <div className="px-8 py-6 bg-slate-50 border-b border-outline-variant flex justify-between items-center no-print">
+        <div className="px-8 py-6 bg-white border-b border-outline-variant flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
               <History className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-black uppercase tracking-tight text-on-surface flex items-center gap-2">
-                Expediente del Equipo
-                <span className="text-primary bg-primary/10 px-2 py-0.5 rounded-lg text-xs font-bold">
-                  {serial}
-                </span>
-              </h2>
-              <p className="text-sm text-on-surface-variant font-medium">
-                Se han encontrado {history.length} ingresos registrados
-              </p>
+              <h3 className="text-xl font-black text-on-surface tracking-tight">Expediente del Equipo</h3>
+              <p className="text-[10px] font-black uppercase text-outline tracking-widest">{isNew ? 'Registro de nuevo ingreso' : 'Historial y Gestión Técnica'}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-xl transition-all"
           >
@@ -297,371 +348,462 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
           </button>
         </div>
 
+        {isNew && (
+          <div className="bg-slate-100 px-8 py-3 flex items-center gap-4 border-b border-outline-variant">
+            <span className="text-[10px] font-black uppercase text-outline tracking-widest">Seleccionar Aliado / Destino:</span>
+            <select
+              value={selectedTable}
+              onChange={(e) => setSelectedTable(e.target.value)}
+              className="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-xs font-bold text-primary outline-none"
+            >
+              <option value="" disabled>Seleccione un aliado...</option>
+              {alliesList.map(ally => (
+                <option key={ally.table_name} value={ally.table_name}>
+                  {ally.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="flex border-b border-outline-variant bg-white px-8 no-print">
-          <button 
+          <button
             onClick={() => setActiveTab('info')}
             className={cn(
-              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
-              activeTab === 'info' || activeTab === 'edit' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
+              "px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+              activeTab === 'info' ? "text-primary" : "text-outline hover:text-on-surface"
             )}
           >
-            <Edit2 className="w-4 h-4" />
-            Expediente / Edición
+            Información
+            {activeTab === 'info' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
           </button>
-          <button 
-            onClick={() => setActiveTab('history')}
-            className={cn(
-              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2",
-              activeTab === 'history' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
-            )}
-          >
-            Historial de Ingresos ({history.length})
-          </button>
-          <button 
+          {!isNew && (
+            <button
+              onClick={() => setActiveTab('history')}
+              className={cn(
+                "px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                activeTab === 'history' ? "text-primary" : "text-outline hover:text-on-surface"
+              )}
+            >
+              Trazabilidad
+              {activeTab === 'history' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
+            </button>
+          )}
+          <button
             onClick={() => setActiveTab('report')}
             className={cn(
-              "px-6 py-4 text-sm font-bold uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
-              activeTab === 'report' ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"
+              "px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+              activeTab === 'report' ? "text-primary" : "text-outline hover:text-on-surface"
             )}
           >
-            <FileText className="w-4 h-4" />
-            Crear Informe
+            Informe Técnico
+            {activeTab === 'report' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-4">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              <p className="text-sm font-bold text-outline uppercase tracking-widest">Consultando base de datos...</p>
-            </div>
-          ) : activeTab === 'info' || activeTab === 'edit' ? (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white rounded-3xl border border-outline-variant/30 shadow-sm overflow-hidden">
-                <table className="w-full border-collapse table-fixed">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-outline-variant/20">
-                      <th className="px-8 py-4 text-left text-[11px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em] w-1/2">Nombre del Campo</th>
-                      <th className="px-8 py-4 text-left text-[11px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em] w-1/2">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/10">
-                    {Object.keys(formData)
-                      .filter(key => !['id', 'created_at', 'sourceTable', 'modificado_crm'].includes(key))
-                      .map((key) => {
-                        const isObservaciones = key.includes('observaciones') || key.includes('detalle');
-                        const isDate = key.includes('fecha');
-                        const isNeverEditable = key.toLowerCase().includes('nro') || 
-                                              key.toLowerCase().includes('ingreso') || 
-                                              key.toLowerCase().includes('control') ||
-                                              key.toLowerCase() === 'nivel' ||
-                                              key.toLowerCase() === 'n';
-                        let label = key.replace(/_/g, ' ').toUpperCase();
-                        if (label === 'N' || label === 'NRO') label = 'NID';
-                        const displayValue = isDate ? (formData[key]?.split('T')[0] || '---') : (formData[key] || '---');
-
-                        return (
-                          <tr key={key} className="group hover:bg-primary/5 transition-colors">
-                            <td className="px-8 py-4 text-[10px] font-black text-on-surface-variant/60 uppercase tracking-widest group-hover:text-primary transition-colors">
-                              {label}
-                            </td>
-                            <td className="px-8 py-3">
-                              {(!isEditing || isNeverEditable) ? (
-                                <span className={cn(
-                                  "text-xs font-bold block truncate",
-                                  isNeverEditable ? "text-on-surface-variant/40 italic" : "text-on-surface-variant"
-                                )}>
-                                  {displayValue}
-                                </span>
-                              ) : isObservaciones ? (
-                                <textarea 
-                                  value={formData[key] || ''}
-                                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                                  className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none h-16 transition-all"
-                                />
-                              ) : (
-                                <input 
-                                  type="text" 
-                                  value={isDate ? (formData[key]?.split('T')[0] || '') : (formData[key] || '')}
-                                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                                  className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                />
-                              )}
-                            </td>
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
+          {activeTab === 'info' || activeTab === 'edit' ? (
+            <div className="p-8">
+              {!formData ? (
+                <div className="text-center py-20 bg-white rounded-[40px] border border-outline-variant border-dashed">
+                  <Package className="w-16 h-16 text-outline/20 mx-auto mb-6" />
+                  <h4 className="text-lg font-black text-on-surface mb-2">Esperando selección de aliado</h4>
+                  <p className="text-[10px] font-black text-outline uppercase tracking-widest max-w-[280px] mx-auto leading-relaxed">
+                    Por favor seleccione un destino para cargar los campos correspondientes a su base de datos.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Main Data Column */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white rounded-3xl border border-outline-variant overflow-hidden shadow-sm">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-outline-variant">
+                            <th className="px-8 py-4 text-[10px] font-black text-outline uppercase tracking-widest">Campo</th>
+                            <th className="px-8 py-4 text-[10px] font-black text-outline uppercase tracking-widest">Valor Registrado</th>
                           </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant/10">
+                          {Object.keys(formData)
+                            .filter(key => !['id', 'created_at', 'sourceTable', 'modificado_crm'].includes(key))
+                            .sort((a, b) => {
+                              const order = [
+                                'n', 'nro', 'ne',
+                                'factura',
+                                'procesadora',
+                                'fecha',
+                                'aliado',
+                                'modelo',
+                                'razon_social', 'razn_social',
+                                'serial',
+                                'informes',
+                                'rif',
+                                'ingreso',
+                                'serial_de_remplazo',
+                                'falla_notificada',
+                                'categoria', 'categora',
+                                'fecha_final',
+                                'estatus_del_caso',
+                                'estatus',
+                                'nivel',
+                                'garantia',
+                                'informe', 'informe2',
+                                'cotizacin', 'cotizacion',
+                                'observaciones', 'observacion_2',
+                                'repuesto__servicio_1', 'repuesto__servicio',
+                                'repuesto__servicio_2',
+                                'repuesto__servicio_3'
+                              ];
+
+                              const indexA = order.findIndex(o => a.toLowerCase() === o.toLowerCase());
+                              const indexB = order.findIndex(o => b.toLowerCase() === o.toLowerCase());
+
+                              if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+                              if (indexA === -1) return 1;
+                              if (indexB === -1) return -1;
+                              return indexA - indexB;
+                            })
+                            .map((key) => {
+                              const isObservaciones = key.includes('observaciones') || key.includes('detalle');
+                              const isNeverEditable = ['created_at'].includes(key);
+                              const isDate = key.includes('fecha');
+                              const isNid = key.toLowerCase() === 'id' ||
+                                key.toLowerCase() === 'nro' ||
+                                key.toLowerCase() === 'n';
+                              let label = key.replace(/_/g, ' ').toUpperCase();
+                              if (label === 'N' || label === 'NRO') label = 'NID';
+                              const displayValue = isDate ? (formData[key]?.split('T')[0] || '---') : (formData[key] || '---');
+
+                              const isGarantia = key.toLowerCase() === 'garantia';
+                              const isModelo = key.toLowerCase() === 'modelo';
+                              const isProcesadora = key.toLowerCase() === 'procesadora';
+                              const isEstatusCaso = key.toLowerCase() === 'estatus_del_caso';
+
+                              return (
+                                <tr key={key} className="group hover:bg-primary/5 transition-colors">
+                                  <td className="px-8 py-4 text-[10px] font-black text-on-surface-variant/60 uppercase tracking-widest group-hover:text-primary transition-colors">
+                                    {label}
+                                  </td>
+                                  <td className="px-8 py-3">
+                                    {(!isEditing || isNeverEditable) ? (
+                                      <span className={cn(
+                                        "text-xs font-bold block truncate",
+                                        isNeverEditable ? "text-on-surface-variant/40 italic" : "text-on-surface-variant"
+                                      )}>
+                                        {displayValue}
+                                      </span>
+                                    ) : isObservaciones ? (
+                                      <textarea
+                                        value={formData[key] || ''}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none h-16 transition-all"
+                                      />
+                                    ) : isModelo ? (
+                                      <select
+                                        value={formData[key] || ''}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      >
+                                        <option value="">Seleccione modelo...</option>
+                                        <optgroup label="-- LINUX --">
+                                          <option value="ME51">ME51</option>
+                                          <option value="SP600">SP600</option>
+                                          <option value="ME60">ME60</option>
+                                        </optgroup>
+                                        <optgroup label="-- ANDROID --">
+                                          <option value="N910">N910</option>
+                                          <option value="N910-A7">N910-A7</option>
+                                          <option value="N910-A10">N910-A10</option>
+                                          <option value="N750">N750</option>
+                                          <option value="N950S">N950S</option>
+                                          <option value="N950K">N950K</option>
+                                        </optgroup>
+                                      </select>
+                                    ) : isProcesadora ? (
+                                      <select
+                                        value={formData[key] || ''}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      >
+                                        <option value="">Seleccione procesadora...</option>
+                                        <option value="CREDICARD">CREDICARD</option>
+                                        <option value="PLATCO">PLATCO</option>
+                                      </select>
+                                    ) : isEstatusCaso ? (
+                                      <select
+                                        value={formData[key] || ''}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      >
+                                        <option value="CASO ABIERTO">CASO ABIERTO</option>
+                                        <option value="CASO CERRADO">CASO CERRADO</option>
+                                      </select>
+                                    ) : isGarantia ? (
+                                      <select
+                                        value={(formData[key] || '').toUpperCase()}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      >
+                                        <option value="SI">SI</option>
+                                        <option value="NO">NO</option>
+                                      </select>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        value={isDate ? (formData[key]?.split('T')[0] || '') : (formData[key] || '')}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      />
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Sidebar Column */}
+                  <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-3xl border border-outline-variant shadow-sm">
+                      <h4 className="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Estatus Técnico</h4>
+                      <div className="space-y-3">
+                        {['EN REVISION', 'REPARADO', 'SIN SOLUCION', 'ENTREGADO'].map(status => (
+                          <button
+                            key={status}
+                            disabled={!isEditing}
+                            onClick={() => setFormData({ ...formData, estatus: status })}
+                            className={cn(
+                              "w-full px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-left flex items-center justify-between",
+                              formData.estatus === status
+                                ? "bg-primary text-white shadow-lg shadow-primary/20"
+                                : "bg-slate-50 text-outline hover:bg-slate-100 disabled:opacity-50"
+                            )}
+                          >
+                            {status}
+                            {formData.estatus === status && <CheckCircle2 className="w-4 h-4" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10">
+                      <div className="flex items-center gap-3 mb-4">
+                        <AlertCircle className="w-4 h-4 text-primary" />
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Información de Sistema</h4>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black text-outline uppercase">Origen:</span>
+                          <span className="text-[10px] font-black text-primary uppercase">{isNew ? selectedTable : targetTableName}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black text-outline uppercase">Modificado CRM:</span>
+                          <span className={cn(
+                            "text-[10px] font-black px-2 py-0.5 rounded-full uppercase",
+                            formData.modificado_crm ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"
+                          )}>
+                            {formData.modificado_crm ? 'SÍ' : 'NO'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : activeTab === 'history' ? (
-            <div className="space-y-4">
-              {history.map((record, index) => (
-                <div 
-                  key={index}
-                  className="group bg-white border border-outline-variant rounded-2xl p-6 hover:border-primary/50 hover:bg-primary/[0.02] transition-all relative"
-                >
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  
-                  {/* Header of history item */}
-                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-dashed border-outline-variant">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
-                        {history.length - index}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-outline tracking-widest leading-none mb-1">Base de Datos</p>
-                        <p className="text-sm font-black text-on-surface uppercase tracking-tight">{record.sourceTable.replace(/_/g, ' ')}</p>
-                      </div>
-                    </div>
-                    <div className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border shadow-sm",
-                      record.estatus?.toLowerCase().includes('cerrado') ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"
-                    )}>
-                      {record.estatus || 'SIN ESTATUS'}
-                    </div>
-                  </div>
-
-                  {/* Grid of details */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Fecha Ingreso
-                      </p>
-                      <p className="text-xs font-bold text-on-surface">{record.fecha?.split('T')[0] || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Fecha Final
-                      </p>
-                      <p className="text-xs font-bold text-on-surface">{record.fecha_final || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Tag className="w-3 h-3" /> Categoría
-                      </p>
-                      <p className="text-xs font-bold text-on-surface truncate">{record.categoria || record.categora || record.lote || '-'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Garantía
-                      </p>
-                      <p className={cn(
-                        "text-xs font-black uppercase",
-                        record.garantia?.toLowerCase() === 'si' ? "text-green-600" : "text-red-500"
-                      )}>
-                        {record.garantia || 'NO'}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <FileSpreadsheet className="w-3 h-3" /> Cotización
-                      </p>
-                      <p className="text-xs font-bold text-primary font-mono">{record.cotizacin || record.cotizacion || '-'}</p>
-                    </div>
-                    <div className="md:col-span-3 space-y-1">
-                      <p className="text-[9px] font-black uppercase text-outline flex items-center gap-1">
-                        <Info className="w-3 h-3" /> Observaciones
-                      </p>
-                      <p className="text-xs text-on-surface-variant italic leading-relaxed line-clamp-2">
-                        {record.observaciones || 'Sin observaciones.'}
-                      </p>
-                    </div>
-                  </div>
+            <div className="p-8">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                  <p className="text-xs font-black text-outline uppercase tracking-widest">Rastreando terminal...</p>
                 </div>
-              ))}
+              ) : history.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-outline-variant border-dashed">
+                  <History className="w-12 h-12 text-outline/20 mx-auto mb-4" />
+                  <p className="text-xs font-bold text-outline uppercase tracking-widest">No se encontraron otros ingresos</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((record, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-3xl border border-outline-variant shadow-sm hover:border-primary/30 transition-all group">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                            <Calendar className="w-5 h-5 text-outline group-hover:text-primary transition-colors" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-on-surface">{record.fecha || record.created_at?.split('T')[0] || 'FECHA N/A'}</p>
+                            <p className="text-[10px] font-black text-outline uppercase tracking-widest">{record.sourceTable}</p>
+                          </div>
+                        </div>
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                          record.estatus?.includes('REPARADO') ? "bg-green-100 text-green-700" :
+                            record.estatus?.includes('REVISION') ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                        )}>
+                          {record.estatus || 'SIN ESTADO'}
+                        </div>
+                      </div>
+                      <p className="text-xs text-on-surface-variant font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl italic border border-slate-100">
+                        "{record.observaciones || 'Sin observaciones registradas'}"
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : activeTab === 'report' ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-3xl mx-auto">
-              {/* Report Document */}
-              <div className="bg-white border border-slate-200 p-10 rounded-[8px] shadow-sm relative overflow-hidden text-on-surface report-print-container">
-                {/* Header Logo/Title */}
-                <div className="flex justify-between items-start mb-12 border-b-2 border-primary pb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary flex items-center justify-center text-white rounded-lg">
-                      <Monitor className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black uppercase tracking-tight">Informe de Servicio Técnico</h4>
-                      <p className="text-[9px] font-bold text-outline uppercase tracking-[0.2em]">Soporte Técnico y Control de Calidad</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-black uppercase text-outline">N# Control</p>
-                    <p className="text-sm font-bold">{mainRecord?.informe || '---'}</p>
-                    <p className="text-[9px] font-black uppercase text-outline mt-1">Fecha</p>
-                    <p className="text-xs font-bold">{new Date().toLocaleDateString('es-VE')}</p>
-                  </div>
+            <div className="p-8">
+              {!formData ? (
+                <div className="text-center py-20 bg-white rounded-[40px] border border-outline-variant border-dashed">
+                  <FileText className="w-16 h-16 text-outline/20 mx-auto mb-6" />
+                  <h4 className="text-lg font-black text-on-surface mb-2">Informe no disponible</h4>
+                  <p className="text-[10px] font-black text-outline uppercase tracking-widest max-w-[280px] mx-auto leading-relaxed">
+                    Seleccione un aliado para habilitar la generación de informes técnicos.
+                  </p>
                 </div>
-
-                <div className="space-y-14">
-                  {/* Section 1: Cliente y Equipo */}
-                  <section>
-                    <h5 className="text-[10px] font-black uppercase text-primary border-l-4 border-primary pl-3 mb-6 tracking-widest bg-slate-50 py-1.5">1. Información del Cliente y Equipo</h5>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                      <EditableReportField 
-                        label="Razón Social" 
-                        value={formData.razon_social || formData.razn_social} 
-                        onChange={(val) => setFormData({ ...formData, razon_social: val, razn_social: val })}
-                      />
-                      <EditableReportField 
-                        label="Serial" 
-                        value={formData.serial} 
-                        onChange={(val) => setFormData({ ...formData, serial: val })}
-                      />
-                      <EditableReportField 
-                        label="RIF" 
-                        value={formData.rif} 
-                        onChange={(val) => setFormData({ ...formData, rif: val })}
-                      />
-                      <EditableReportField 
-                        label="Falla Reportada" 
-                        value={formData.falla_notificada || formData.falla_reportada} 
-                        onChange={(val) => setFormData({ ...formData, falla_notificada: val })}
-                      />
-                      <EditableReportField 
-                        label="Marca" 
-                        value={formData.marca || 'NEWLAND'} 
-                        onChange={(val) => setFormData({ ...formData, marca: val })}
-                      />
-                      <EditableReportField 
-                        label="Modelo" 
-                        value={formData.modelo} 
-                        onChange={(val) => setFormData({ ...formData, modelo: val })}
-                      />
-                      <EditableReportField 
-                        label="Procesadora" 
-                        value={formData.procesadora || currentSlug.toUpperCase()} 
-                        onChange={(val) => setFormData({ ...formData, procesadora: val })}
-                      />
-                    </div>
-                  </section>
-
-                  {/* Section 2: Recepción */}
-                  <section>
-                    <h5 className="text-[10px] font-black uppercase text-primary border-l-4 border-primary pl-3 mb-4 tracking-widest bg-slate-50 py-1.5">2. Recepción del Equipo (Accesorios)</h5>
-                    <div className="grid grid-cols-2 gap-x-12">
-                      <div className="space-y-1">
-                        <AccessoryToggle 
-                          label="Caja original" 
-                          value={accessories['Caja original']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Caja original': val })} 
-                        />
-                        <AccessoryToggle 
-                          label="Cargador" 
-                          value={accessories['Cargador']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Cargador': val })} 
-                        />
-                        <AccessoryToggle 
-                          label="Batería" 
-                          value={accessories['Batería']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Batería': val })} 
-                        />
-                        <AccessoryToggle 
-                          label="SIM card" 
-                          value={accessories['SIM card']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'SIM card': val })} 
-                        />
-                        <AccessoryToggle 
-                          label="Etiqueta de garantía" 
-                          value={accessories['Etiqueta de garantía']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Etiqueta de garantía': val })} 
-                        />
+              ) : (
+                <div
+                  ref={reportRef}
+                  className="bg-white p-12 rounded-[40px] shadow-sm border border-outline-variant max-w-4xl mx-auto print:shadow-none print:border-none print:p-0"
+                >
+                  {/* Report Header */}
+                  <div className="flex justify-between items-start border-b-2 border-primary/20 pb-8 mb-8">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-black text-on-surface uppercase tracking-tight">Informe de Soporte Técnico</h2>
                       </div>
-                      <div className="space-y-1">
-                        <AccessoryToggle 
-                          label="Forro declaración de cont." 
-                          value={accessories['Forro declaración de cont.']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Forro declaración de cont.': val })} 
-                        />
-                        <AccessoryToggle 
-                          label="Rollo térmico" 
-                          value={accessories['Rollo térmico']} 
-                          onChange={(val) => setAccessories({ ...accessories, 'Rollo térmico': val })} 
-                        />
+                      <div className="flex flex-col gap-1">
+                        <p className="text-xs font-bold text-outline uppercase tracking-widest">Nro de Expediente: <span className="text-primary">{formData.n || formData.nro || formData.id?.slice(0, 8)}</span></p>
+                        <p className="text-xs font-bold text-outline uppercase tracking-widest">Fecha: <span className="text-primary">{new Date().toLocaleDateString()}</span></p>
                       </div>
                     </div>
-                  </section>
-
-                  {/* Section 3: Evaluación */}
-                  <section>
-                    <h5 className="text-[10px] font-black uppercase text-primary border-l-4 border-primary pl-3 mb-6 tracking-widest bg-slate-50 py-1.5">3. Evaluación Técnica</h5>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                      <EditableReportField 
-                        label="Estatus del Equipo" 
-                        value={formData.estatus} 
-                        onChange={(val) => setFormData({ ...formData, estatus: val })}
-                      />
-                      <EditableReportField 
-                        label="Garantía" 
-                        value={formData.garantia} 
-                        onChange={(val) => setFormData({ ...formData, garantia: val })}
-                      />
-                      <EditableReportField 
-                        label="Nivel" 
-                        value={formData.nivel} 
-                        onChange={(val) => setFormData({ ...formData, nivel: val })}
-                      />
-                      <EditableReportField 
-                        label="Estatus del Caso" 
-                        value={formData.estatus_del_caso} 
-                        onChange={(val) => setFormData({ ...formData, estatus_del_caso: val })}
-                      />
-                    </div>
-                  </section>
-
-                  {/* Section 4: Observaciones */}
-                  <section>
-                    <h5 className="text-[10px] font-black uppercase text-primary border-l-4 border-primary pl-3 mb-4 tracking-widest bg-slate-50 py-1.5">4. Observaciones Finales</h5>
-                    <div className="p-4 border border-slate-100 rounded bg-slate-50/50 min-h-[120px]">
-                      <EditableReportArea 
-                        label="Detalle de la evaluación" 
-                        value={formData.observaciones} 
-                        onChange={(val) => setFormData({ ...formData, observaciones: val })}
-                      />
-                    </div>
-                  </section>
-                  
-                  {/* Tecnico sin cabecera */}
-                  <div className="pt-6 border-t border-slate-100 flex justify-end">
-                    <div className="flex flex-col items-end">
-                      <span className="text-[9px] font-black uppercase text-outline tracking-wider mb-1">Técnico Encargado</span>
-                      <select 
-                        value={selectedTecnico}
-                        onChange={(e) => setSelectedTecnico(e.target.value)}
-                        className="text-[11px] font-bold text-primary bg-slate-50 border border-slate-200 rounded px-3 py-1.5 outline-none no-print"
-                      >
-                        {tecnicos.map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </select>
-                      <p className="text-[11px] font-bold text-primary hidden print:block uppercase">{selectedTecnico}</p>
+                    <div className="text-right">
+                      <p className="text-lg font-black text-primary">VATC GLOBAL</p>
+                      <p className="text-[10px] font-bold text-outline uppercase">Servicio Técnico Especializado</p>
                     </div>
                   </div>
 
-                </div>
-              </div>
+                  {/* Report Content */}
+                  <div className="grid grid-cols-2 gap-8 mb-12">
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">Información del Equipo</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <InfoItem icon={Hash} label="Serial" value={formData.serial} />
+                        <InfoItem icon={Package} label="Modelo" value={formData.modelo} />
+                        <InfoItem icon={Building2} label="Aliado" value={formData.aliado || (selectedTable || targetTableName).toUpperCase()} />
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">Información del Cliente</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <InfoItem icon={User} label="Razón Social" value={formData.razon_social || formData.razn_social} />
+                        <InfoItem icon={FileText} label="RIF" value={formData.rif} />
+                        <InfoItem icon={ShieldCheck} label="Garantía" value={formData.garantia} />
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="flex justify-center gap-4 no-print">
-                  <button
-                    onClick={handlePrint}
-                    className="bg-primary text-white px-12 py-3 rounded-xl text-sm font-bold shadow-xl hover:opacity-90 transition-all flex items-center gap-3"
-                  >
-                    <Printer className="w-5 h-5" />
-                    Imprimir Informe
-                  </button>
+                  <div className="space-y-8">
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">Diagnóstico y Solución</h3>
+                      <div className="bg-slate-50 p-6 rounded-[32px] border border-outline-variant">
+                        <div className="mb-6">
+                          <label className="text-[9px] font-black text-outline uppercase tracking-widest mb-2 block">Falla Notificada:</label>
+                          <p className="text-sm font-medium text-on-surface leading-relaxed">{formData.falla_notificada || 'Reporte estándar de revisión'}</p>
+                        </div>
+                        <div className="no-print mb-4">
+                          <label className="text-[9px] font-black text-outline uppercase tracking-widest mb-2 block">Observaciones Técnicas:</label>
+                          <textarea
+                            value={formData.observaciones || ''}
+                            onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                            className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none h-32 resize-none"
+                            placeholder="Ingrese las observaciones del diagnóstico..."
+                          />
+                        </div>
+                        <div className="hidden print:block">
+                          <label className="text-[9px] font-black text-outline uppercase tracking-widest mb-2 block">Diagnóstico Final:</label>
+                          <p className="text-sm font-medium text-on-surface leading-relaxed whitespace-pre-wrap">{formData.observaciones || 'Sin observaciones adicionales'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8 pt-8 border-t-2 border-slate-100">
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Accesorios Recibidos</h3>
+                        <div className="grid grid-cols-2 gap-3 no-print">
+                          {Object.keys(accessories).map(item => (
+                            <label key={item} className="flex items-center gap-3 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={accessories[item]}
+                                onChange={(e) => setAccessories({ ...accessories, [item]: e.target.checked })}
+                                className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                              />
+                              <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="hidden print:flex flex-wrap gap-x-6 gap-y-2">
+                          {Object.entries(accessories).filter(([_, v]) => v).map(([k]) => (
+                            <div key={k} className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-primary" />
+                              <span className="text-[10px] font-bold text-on-surface uppercase">{k}</span>
+                            </div>
+                          ))}
+                          {Object.values(accessories).every(v => !v) && <span className="text-[10px] italic text-outline">Ninguno</span>}
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Firma y Sello Técnico</h3>
+                        <div className="no-print">
+                          <select
+                            value={selectedTecnico}
+                            onChange={(e) => setSelectedTecnico(e.target.value)}
+                            className="w-full bg-slate-50 border border-outline-variant rounded-xl px-4 py-2 text-xs font-bold text-on-surface outline-none"
+                          >
+                            {tecnicos.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mt-8 border-t border-outline-variant pt-4 text-center">
+                          <div className="w-32 h-12 mx-auto mb-2 bg-slate-50 rounded italic flex items-center justify-center text-[10px] text-outline/30">Firma Digital</div>
+                          <p className="text-[10px] font-black text-on-surface uppercase tracking-widest">{selectedTecnico}</p>
+                          <p className="text-[8px] font-bold text-outline uppercase">Especialista Certificado</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center gap-4 no-print mt-12">
+                    <button
+                      onClick={handlePrint}
+                      className="bg-primary text-white px-12 py-3 rounded-xl text-sm font-bold shadow-xl hover:opacity-90 transition-all flex items-center gap-3"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                      Ver Informe Completo
+                    </button>
+                  </div>
                 </div>
+              )}
             </div>
           ) : null}
         </div>
 
         {/* Footer */}
         <div className="px-8 py-6 bg-slate-50 border-t border-outline-variant flex justify-end gap-3 no-print">
-          {(activeTab === 'info' || activeTab === 'edit') && (
+          {(activeTab === 'info' || activeTab === 'edit') && formData && (
             <>
               {isEditing ? (
-                <button 
+                <button
                   onClick={async () => {
                     await handleSave();
                     setIsEditing(false);
@@ -673,7 +815,7 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
                   Guardar
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={() => setIsEditing(true)}
                   className="bg-primary/10 text-primary px-10 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2"
                 >
@@ -684,10 +826,14 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
             </>
           )}
           {isEditing && (
-            <button 
+            <button
               onClick={() => {
-                setFormData(mainRecord);
-                setIsEditing(false);
+                if (isNew) {
+                  onClose();
+                } else {
+                  setFormData(mainRecord);
+                  setIsEditing(false);
+                }
               }}
               className="bg-slate-200 text-on-surface-variant px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all"
             >
@@ -695,7 +841,7 @@ export function TerminalDetailsModal({ isOpen, onClose, serial, currentSlug }: T
             </button>
           )}
           {!isEditing && (
-            <button 
+            <button
               onClick={onClose}
               className="bg-on-surface text-surface px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
             >

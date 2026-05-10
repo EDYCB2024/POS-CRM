@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 // Reusable components for the print view
 function PrintField({ label, value }: { label: string, value: string }) {
@@ -42,11 +43,58 @@ export default function PrintReportPage() {
   const [data, setData] = useState<any>(null)
 
   useEffect(() => {
-    // Read the data from localStorage when the tab opens
-    const savedData = localStorage.getItem('print_report_data')
-    if (savedData) {
-      setData(JSON.parse(savedData))
+    async function loadData() {
+      const searchParams = new URLSearchParams(window.location.search);
+      const serialParam = searchParams.get('serial');
+
+      if (serialParam) {
+        // Try to fetch from Supabase to ensure fresh data
+        try {
+          const tables = ['vatc', 'banplus', 'ccr', 'instapago', 'poscom', 'exterior', 'bancaribe', 'tokenp', 'bactivo', 'bancrecer', 'bestpay', 'delsur', 'paytech', 'platco', 'platco_pos', 'otros'];
+          
+          let foundData = null;
+          for (const table of tables) {
+            const { data: record } = await supabase
+              .from(table)
+              .select('*')
+              .or(`serial.eq.${serialParam},serial_de_remplazo.eq.${serialParam}`)
+              .maybeSingle();
+            
+            if (record) {
+              foundData = {
+                formData: record,
+                accessories: {
+                  caja: false,
+                  cargador: false,
+                  bateria: false,
+                  tapa: false,
+                  rollos: false,
+                  base: false
+                },
+                selectedTecnico: 'Servicio Técnico',
+                serial: serialParam
+              };
+              break;
+            }
+          }
+
+          if (foundData) {
+            setData(foundData);
+            return;
+          }
+        } catch (err) {
+          console.error("Error fetching report data:", err);
+        }
+      }
+
+      // Fallback to localStorage
+      const savedData = localStorage.getItem('print_report_data')
+      if (savedData) {
+        setData(JSON.parse(savedData))
+      }
     }
+
+    loadData();
   }, [])
 
   if (!data) return (

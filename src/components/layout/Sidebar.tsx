@@ -4,29 +4,34 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { 
-  LayoutDashboard, 
-  Smartphone, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Home,
+  Smartphone,
+  BarChart3,
   Database,
-  Settings, 
-  HelpCircle, 
-  ChevronDown, 
-  Users, 
+  Settings,
+  HelpCircle,
+  ChevronDown,
+  Users,
   Building2,
   Package,
   Boxes,
   ChevronRight,
   ChevronLeft,
-  ListChecks
+  ListChecks,
+  LifeBuoy,
+  FileText,
+  MessageSquare,
+  Plus
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Terminals', href: '/terminals', icon: Smartphone },
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ]
 
@@ -38,12 +43,17 @@ const dataCenter = [
 
 const secondaryNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Support', href: '/support', icon: HelpCircle },
 ]
 
 const inventory = [
   { name: 'Stock General', href: '/inventory', icon: Boxes },
   { name: 'Movimientos', href: '/inventory/movements', icon: ListChecks },
+]
+
+const helpCenter = [
+  { name: 'Guías de Usuario', href: '/help/guides', icon: FileText },
+  { name: 'FAQ', href: '/help/faq', icon: HelpCircle },
+  { name: 'Soporte Técnico', href: '/support', icon: MessageSquare },
 ]
 
 // Cache outside the component to persist between remounts
@@ -54,10 +64,12 @@ export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const [isAliadosOpen, setIsAliadosOpen] = useState(false)
+  const [isAddEquipmentOpen, setIsAddEquipmentOpen] = useState(false)
   const [isDataCenterOpen, setIsDataCenterOpen] = useState(false)
-  const [isInventoryOpen, setIsInventoryOpen] = useState(true)
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [isOtrosOpen, setIsOtrosOpen] = useState(false)
-  
+
   const [dynamicAliados, setDynamicAliados] = useState<any[]>(cachedAliados || [])
   const [dynamicOtros, setDynamicOtros] = useState<any[]>(cachedOtros || [])
   const router = useRouter()
@@ -76,10 +88,10 @@ export function Sidebar() {
       if (data) {
         const aliados = data.filter(a => a.category === 'Aliados');
         const otros = data.filter(a => a.category === 'Otros');
-        
+
         cachedAliados = aliados;
         cachedOtros = otros;
-        
+
         setDynamicAliados(aliados)
         setDynamicOtros(otros)
       }
@@ -88,7 +100,7 @@ export function Sidebar() {
   }, [])
 
   return (
-    <div 
+    <div
       className={cn(
         "fixed left-0 top-0 h-screen z-50 transition-all duration-300 ease-in-out flex",
         isOpen ? "translate-x-0" : "-translate-x-80"
@@ -131,6 +143,40 @@ export function Sidebar() {
           {/* Aliados Section */}
           <div className="pt-4 mt-2">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Network</div>
+            
+            {/* Add Equipment Link */}
+            <Link
+              href="/terminals/new"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1 border border-transparent",
+                pathname === '/terminals/new'
+                  ? "bg-primary text-white shadow-lg shadow-primary/20 border-primary"
+                  : "text-secondary hover:text-on-surface hover:bg-white hover:border-outline-variant/30"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-lg flex items-center justify-center transition-colors",
+                pathname === '/terminals/new' ? "bg-white text-primary" : "bg-primary text-white"
+              )}>
+                <Plus className="w-3.5 h-3.5" />
+              </div>
+              <span>Añadir Equipo</span>
+            </Link>
+
+            {/* Terminals Link added to Network */}
+            <Link
+              href="/terminals"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1",
+                pathname === '/terminals'
+                  ? "bg-primary text-white shadow-lg shadow-primary/20"
+                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
+              )}
+            >
+              <Smartphone className={cn("w-5 h-5", pathname === '/terminals' ? "text-white" : "text-primary/70 group-hover:text-primary")} />
+              <span>Terminals</span>
+            </Link>
+
             <button
               onClick={() => setIsAliadosOpen(!isAliadosOpen)}
               className={cn(
@@ -192,6 +238,41 @@ export function Sidebar() {
             )}
           </div>
 
+          {/* Inventario Section */}
+          <div className="pt-4 mt-2">
+            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Logistics</div>
+            <button
+              onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                isInventoryOpen
+                  ? "bg-secondary-container/30 text-primary border border-primary/10"
+                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Package className={cn("w-5 h-5", isInventoryOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
+                <span>Inventario</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isInventoryOpen ? "rotate-180" : "")} />
+            </button>
+
+            {isInventoryOpen && (
+              <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
+                {inventory.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
+                  >
+                    <item.icon className="w-3.5 h-3.5 text-on-surface-variant/40" />
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Data Center Section */}
           <div className="pt-4 mt-2">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Systems</div>
@@ -227,28 +308,28 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* Inventario Section */}
+          {/* Help Center Section */}
           <div className="pt-4 mt-2">
-            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Logistics</div>
+            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Support</div>
             <button
-              onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+              onClick={() => setIsHelpOpen(!isHelpOpen)}
               className={cn(
                 "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
-                isInventoryOpen
+                isHelpOpen
                   ? "bg-secondary-container/30 text-primary border border-primary/10"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
               )}
             >
               <div className="flex items-center gap-3">
-                <Package className={cn("w-5 h-5", isInventoryOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
-                <span>Inventario</span>
+                <LifeBuoy className={cn("w-5 h-5", isHelpOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
+                <span>Help Center</span>
               </div>
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isInventoryOpen ? "rotate-180" : "")} />
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isHelpOpen ? "rotate-180" : "")} />
             </button>
 
-            {isInventoryOpen && (
+            {isHelpOpen && (
               <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
-                {inventory.map((item) => (
+                {helpCenter.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
@@ -279,7 +360,7 @@ export function Sidebar() {
       </aside>
 
       {/* Tab Button (Handle) */}
-      <button 
+      <button
         onClick={toggle}
         className={cn(
           "w-6 h-20 bg-primary text-white rounded-r-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:w-8 transition-all duration-300 mt-[50vh] -translate-y-1/2",

@@ -20,11 +20,12 @@ import {
   FileSpreadsheet,
   Building2,
   Download,
-  CloudUpload,
   Loader2,
   ExternalLink,
   FilterX,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  Check
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
@@ -38,7 +39,6 @@ export default function AllyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [filterLote, setFilterLote] = useState('')
   const [filterMes, setFilterMes] = useState('')
@@ -48,29 +48,11 @@ export default function AllyPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSerial, setSelectedSerial] = useState('')
+  const [selectedRow, setSelectedRow] = useState<any>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState(0)
   const pageSize = 20
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === data.length) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(data.map(row => row.id))
-    }
-  }
-
-  const toggleSelectRow = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
-  }
-
-  const handleBulkStatusChange = async (newStatus: string) => {
-    if (selectedIds.length === 0) return
-    try {
-      setLoading(true)
-      const currentSlug = slug?.toString() || ''
-      const tableMapping: Record<string, string> = {
-        'del-sur': 'delsur',
         'pos-comercial': 'poscom',
         'token-pagos': 'tokenp',
         'banco-activo': 'bactivo'
@@ -92,12 +74,6 @@ export default function AllyPage() {
     }
   }
 
-  const COLUMN_ORDER: Record<string, string[]> = {
-    vatc: ['n', 'factura', 'procesadora', 'fecha', 'aliado', 'modelo', 'razon_social', 'serial', 'rif', 'estatus', 'nivel', 'observaciones'],
-    platco: ['nro', 'fecha', 'aliado', 'modelo', 'razon_social', 'serial', 'rif', 'ingreso', 'categoria', 'fecha_final', 'estatus', 'nivel', 'observaciones'],
-    banplus: ['n', 'fecha', 'aliado', 'modelo', 'razon_social', 'serial', 'rif', 'ingreso', 'categoria', 'fecha_final', 'estatus', 'nivel', 'observaciones'],
-    ccr: ['n', 'fecha', 'aliado', 'modelo', 'razon_social', 'serial', 'rif', 'ingreso', 'categoria', 'fecha_final', 'estatus', 'nivel', 'observaciones'],
-  }
 
   const fetchData = async () => {
     if (!slug) return
@@ -156,12 +132,45 @@ export default function AllyPage() {
       setTotalCount(count || 0)
       if (tableData && tableData.length > 0) {
         const allCols = Object.keys(tableData[0]).filter(h => !['id', 'created_at', 'serial_id', 'modificado_crm'].includes(h))
-        const preferred = COLUMN_ORDER[currentSlug] || []
         
-        const sortedCols = [
-          ...preferred.filter(p => allCols.includes(p)),
-          ...allCols.filter(c => !preferred.includes(c))
-        ]
+        const globalOrder = [
+          'n', 'nro', 'ne',
+          'factura',
+          'procesadora',
+          'fecha',
+          'aliado',
+          'modelo',
+          'razon_social', 'razn_social',
+          'serial',
+          'informes',
+          'rif',
+          'ingreso',
+          'serial_de_remplazo',
+          'falla_notificada',
+          'categoria', 'categora',
+          'fecha_final',
+          'estatus_del_caso',
+          'estatus',
+          'nivel',
+          'garantia',
+          'informe', 'informe2',
+          'cotizacin', 'cotizacion',
+          'observaciones', 'observacion_2',
+          'repuesto__servicio_1', 'repuesto__servicio',
+          'repuesto__servicio_2',
+          'repuesto__servicio_3'
+        ];
+        
+        const sortedCols = allCols.sort((a, b) => {
+          const indexA = globalOrder.findIndex(o => a.toLowerCase() === o.toLowerCase());
+          const indexB = globalOrder.findIndex(o => b.toLowerCase() === o.toLowerCase());
+          
+          if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+
         setColumns(sortedCols)
       }
     } catch (err: any) {
@@ -172,6 +181,106 @@ export default function AllyPage() {
     }
   }
 
+  const handleExport = async () => {
+    if (!slug) return
+    
+    const currentSlug = slug.toString()
+    const tableMapping: Record<string, string> = {
+      'del-sur': 'delsur',
+      'pos-comercial': 'poscom',
+      'token-pagos': 'tokenp',
+      'banco-activo': 'bactivo'
+    }
+    const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
+    const fileName = `Aliado_${currentSlug.toUpperCase()}_${new Date().toISOString().split('T')[0]}.xlsx`
+
+    setExporting(true)
+    setExportProgress(0)
+
+    try {
+      const { utils, write } = await import('xlsx')
+      
+      let allData: any[] = []
+      let from = 0
+      const limit = 1000
+      let hasMore = true
+
+      while (hasMore) {
+        let query = supabase
+          .from(tableName)
+          .select('*')
+          .range(from, from + limit - 1)
+          .order('fecha', { ascending: false })
+
+        if (searchTerm) {
+          const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
+          const possibleNameCols = ['razon_social', 'razn_social', 'cliente', 'comercio']
+          let loteCol = possibleLoteCols.find(c => columns.includes(c)) || 'categoria'
+          let nameCol = possibleNameCols.find(c => columns.includes(c)) || 'razon_social'
+          query = query.or(`${loteCol}.ilike.*${searchTerm}*,${nameCol}.ilike.*${searchTerm}*,serial.ilike.*${searchTerm}*,serial_de_remplazo.ilike.*${searchTerm}*`)
+        }
+        if (filterMes) query = query.or(`fecha.ilike.%-${filterMes}-%,fecha.ilike.%/${filterMes}/%`)
+        if (filterEstatus) query = query.ilike('estatus', `%${filterEstatus}%`)
+        if (filterEstatusCaso) query = query.ilike('estatus_del_caso', `%${filterEstatusCaso}%`)
+        if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
+
+        const { data: batchData, error } = await query
+        if (error) throw error
+
+        if (batchData && batchData.length > 0) {
+          allData = [...allData, ...batchData]
+          from += limit
+          if (totalCount > 0) {
+             setExportProgress(Math.min(99, Math.round((allData.length / totalCount) * 100)))
+          }
+          if (batchData.length < limit) hasMore = false
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allData.length === 0) {
+        alert("No hay datos para exportar con los filtros seleccionados.")
+        return
+      }
+
+      setExportProgress(100)
+
+      const formattedData = allData.map(item => {
+        const newItem: any = {}
+        Object.keys(item).forEach(key => {
+          if (!['id', 'created_at', 'modificado_crm'].includes(key)) {
+            newItem[key.replace(/_/g, ' ').toUpperCase()] = item[key]
+          }
+        })
+        return newItem
+      })
+
+      const wb = utils.book_new()
+      const ws = utils.json_to_sheet(formattedData)
+      utils.book_append_sheet(wb, ws, currentSlug.toUpperCase())
+      
+      const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+    } catch (err: any) {
+      console.error('Error exporting:', err)
+      alert("Error al exportar: " + err.message)
+    } finally {
+      setExporting(false)
+      setTimeout(() => setExportProgress(0), 1000)
+    }
+  }
+
   useEffect(() => {
     fetchData()
   }, [slug, page, searchTerm, filterMes, filterEstatus, filterEstatusCaso, filterGarantia])
@@ -179,7 +288,7 @@ export default function AllyPage() {
   const headers = columns.length > 0 ? columns : []
 
   // Helper para renderizar badges de estatus al estilo "Terminal"
-  const renderCellContent = (header: string, value: any) => {
+  const renderCellContent = (header: string, value: any, record?: any) => {
     const stringValue = value?.toString() || '-'
     
     if (header.toLowerCase().includes('estatus') || header.toLowerCase().includes('status')) {
@@ -211,8 +320,74 @@ export default function AllyPage() {
       return <span className="text-[11px] font-medium text-on-surface-variant">{dateOnly}</span>
     }
 
+    if (header.toLowerCase().includes('informe')) {
+      const serialValue = record?.serial || record?.serial_de_remplazo || '';
+      return (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-on-surface truncate max-w-[120px] block" title={stringValue}>{stringValue}</span>
+          {serialValue && (
+            <Link 
+              href={`/print/informe?serial=${serialValue}`}
+              target="_blank"
+              className="p-1 hover:bg-primary/10 rounded-md text-primary transition-all"
+              title="Abrir Informe"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
+      )
+    }
+
+    if (header.toLowerCase().includes('informe')) {
+      const serialValue = record?.serial || record?.serial_de_remplazo || '';
+      return (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-on-surface truncate max-w-[120px] block" title={stringValue}>{stringValue}</span>
+          {serialValue && (
+            <Link 
+              href={`/print/informe?serial=${serialValue}`}
+              target="_blank"
+              className="p-1 hover:bg-primary/10 rounded-md text-primary transition-all"
+              title="Abrir Informe"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
+      )
+    }
+
     if (header.toLowerCase().includes('serial')) {
-      return <span className="font-mono text-[11px] font-bold text-primary">{stringValue}</span>
+      return (
+        <div className="flex items-center gap-2 group/serial">
+          <span className="font-mono text-[11px] font-bold text-primary">{stringValue}</span>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(stringValue);
+              const btn = e.currentTarget;
+              const icon = btn.querySelector('.copy-icon');
+              const check = btn.querySelector('.check-icon');
+              if (icon && check) {
+                icon.classList.add('hidden');
+                check.classList.remove('hidden');
+                setTimeout(() => {
+                  icon.classList.remove('hidden');
+                  check.classList.add('hidden');
+                }, 2000);
+              }
+            }}
+            className="p-1 hover:bg-primary/10 rounded-md transition-all opacity-0 group-hover/serial:opacity-100"
+            title="Copiar Serial"
+          >
+            <Copy className="w-3 h-3 text-primary copy-icon" />
+            <Check className="w-3 h-3 text-green-600 hidden check-icon" />
+          </button>
+        </div>
+      )
     }
 
     if (header.toLowerCase().includes('garantia')) {
@@ -246,24 +421,28 @@ export default function AllyPage() {
               {totalCount.toLocaleString()} Registros
             </p>
           </div>
-          <div className="flex gap-2">
-            <button className="flex items-center gap-2 bg-white border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-semibold hover:bg-surface-container transition-all">
-              <Download className="w-4 h-4 text-primary" />
-              Exportar
-            </button>
-            <button className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all">
-              <CloudUpload className="w-4 h-4" />
-              Subir Cambios
-            </button>
+          <div className="flex flex-col gap-2 items-end">
+            <div className="flex gap-2">
+              <button 
+                onClick={handleExport}
+                disabled={exporting || loading}
+                className="flex items-center gap-2 bg-white border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-semibold hover:bg-surface-container transition-all disabled:opacity-50"
+              >
+                {exporting ? <RefreshCw className="w-4 h-4 text-primary animate-spin" /> : <Download className="w-4 h-4 text-primary" />}
+                {exporting ? `Exportando (${exportProgress}%)` : 'Exportar Excel'}
+              </button>
+            </div>
+            {exporting && (
+              <div className="w-32 bg-slate-100 h-1 rounded-full overflow-hidden mt-1">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${exportProgress}%` }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mb-4 flex justify-end">
-          <button className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 shadow-lg shadow-primary/20 transition-all">
-            <Plus className="w-4 h-4" />
-            Añadir Equipo
-          </button>
-        </div>
 
         {/* Filtros */}
         <div className="mb-4 bg-white p-3 rounded-xl border border-outline-variant flex gap-4 items-center shadow-sm">
@@ -360,26 +539,6 @@ export default function AllyPage() {
           )}
         </div>
 
-        {selectedIds.length > 0 && (
-          <div className="mb-4 bg-primary text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-bold">{selectedIds.length} equipos seleccionados</span>
-              <div className="h-4 w-px bg-white/20" />
-              <div className="flex gap-2">
-                {['ABIERTO', 'CERRADO', 'REPARADO', 'IRREPARABLE'].map(status => (
-                  <button 
-                    key={status}
-                    onClick={() => handleBulkStatusChange(status)}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black uppercase transition-all"
-                  >
-                    Marcar {status}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button onClick={() => setSelectedIds([])} className="text-xs font-bold hover:underline opacity-80">Cancelar</button>
-          </div>
-        )}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center h-96 gap-4 bg-white rounded-lg border border-outline-variant">
@@ -434,14 +593,6 @@ export default function AllyPage() {
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-blue-50 border-b border-outline-variant">
-                    <th className="px-3 py-2 w-[40px] text-center border-r border-outline-variant/30">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedIds.length === data.length && data.length > 0}
-                        onChange={toggleSelectAll}
-                        className="rounded border-outline-variant text-primary focus:ring-primary"
-                      />
-                    </th>
                     {headers.map(header => {
                       const isNumber = header.toLowerCase() === 'n' || header.toLowerCase() === 'nro'
                       return (
@@ -465,27 +616,14 @@ export default function AllyPage() {
                       key={idx} 
                       onClick={() => {
                         setSelectedSerial(row.serial || row.serial_de_remplazo)
+                        setSelectedRow(row)
                         setIsModalOpen(true)
                       }}
-                      className={cn(
-                        "transition-colors group cursor-pointer", 
-                        selectedIds.includes(row.id) ? "bg-primary/10" : "hover:bg-primary/5"
-                      )}
+                      className="transition-colors group cursor-pointer hover:bg-primary/5"
                     >
-                      <td 
-                        className="px-3 py-1.5 text-center border-r border-outline-variant/10"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.includes(row.id)}
-                          onChange={() => toggleSelectRow(row.id)}
-                          className="rounded border-outline-variant text-primary focus:ring-primary"
-                        />
-                      </td>
                       {headers.map(header => (
                         <td key={header} className="px-3 py-1.5 border-r border-outline-variant/10 last:border-r-0">
-                          {renderCellContent(header, row[header])}
+                          {renderCellContent(header, row[header], row)}
                         </td>
                       ))}
                       <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -518,9 +656,13 @@ export default function AllyPage() {
 
       <TerminalDetailsModal 
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedRow(null)
+        }}
         serial={selectedSerial}
         currentSlug={slug?.toString() || ''}
+        initialData={selectedRow}
       />
     </main>
   )

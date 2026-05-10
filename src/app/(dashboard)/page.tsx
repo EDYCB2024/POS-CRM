@@ -1,350 +1,107 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
+import Link from "next/link";
 import { TopBar } from "@/components/layout/TopBar";
 import { 
-  TrendingUp, 
-  Monitor, 
   Smartphone,
-  ShoppingCart, 
-  ShieldCheck,
-  Download,
   Plus,
-  ArrowUpRight,
-  MoreVertical
+  Zap,
+  Search,
+  LayoutGrid,
+  FileText
 } from 'lucide-react';
-import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
-
-// Cache outside the component to persist dashboard stats between remounts
-let cachedStats: {
-  key: string;
-  data: any;
-} | null = null;
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  
-  const [dayStats, setDayStats] = useState<{ total: number, allies: any[], models: any[] }>({ total: 0, allies: [], models: [] });
-  const [monthStats, setMonthStats] = useState<{ total: number, allies: any[], models: any[] }>({ total: 0, allies: [], models: [] });
-  const [yearStats, setYearStats] = useState<{ total: number, allies: any[], models: any[] }>({ total: 0, allies: [], models: [] });
-  const [totalGlobal, setTotalGlobal] = useState(0);
-
-  const dateInputRef = useRef<HTMLInputElement>(null);
-  const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const fullMonthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-  const allyTables = [
-    'vatc', 'banplus', 'ccr', 'instapago', 'poscom', 'exterior', 
-    'bancaribe', 'tokenp', 'bactivo', 'bancrecer', 'bestpay', 
-    'delsur', 'paytech', 'platco'
-  ];
-
-  const aggregateBy = (data: any[], key: string) => {
-    if (!data || data.length === 0) return [];
-    const counts = data.reduce((acc: any, item: any) => {
-      const val = item[key] || 'DESCONOCIDO';
-      acc[val] = (acc[val] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(counts)
-      .map(([name, count]) => ({ name: name.toUpperCase(), count: count as number }))
-      .sort((a, b) => b.count - a.count);
-  };
-
-  const fetchStats = async (force: boolean = false) => {
-    const cacheKey = `${selectedDate.toISOString().split('T')[0]}-${selectedMonth}-${selectedYear}`;
-    
-    // Use cache if available and not forcing a refresh
-    if (!force && cachedStats && cachedStats.key === cacheKey) {
-      const { global_total, day_data, month_data, year_data } = cachedStats.data;
-      setTotalGlobal(global_total);
-      setDayStats({ total: day_data.length, allies: aggregateBy(day_data, 'table'), models: aggregateBy(day_data, 'modelo') });
-      setMonthStats({ total: month_data.length, allies: aggregateBy(month_data, 'table'), models: aggregateBy(month_data, 'modelo') });
-      setYearStats({ total: year_data.length, allies: aggregateBy(year_data, 'table'), models: aggregateBy(year_data, 'modelo') });
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Call consolidated RPC (1 request instead of 56)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_pos_dashboard_stats', {
-        p_selected_date: selectedDate.toISOString().split('T')[0],
-        p_selected_month: selectedMonth + 1,
-        p_selected_year: selectedYear
-      });
-
-      if (rpcError) throw rpcError;
-
-      if (rpcData) {
-        const { global_total, day_data, month_data, year_data } = rpcData;
-        
-        // Update state
-        setTotalGlobal(global_total);
-        setDayStats({ total: day_data.length, allies: aggregateBy(day_data, 'table'), models: aggregateBy(day_data, 'modelo') });
-        setMonthStats({ total: month_data.length, allies: aggregateBy(month_data, 'table'), models: aggregateBy(month_data, 'modelo') });
-        setYearStats({ total: year_data.length, allies: aggregateBy(year_data, 'table'), models: aggregateBy(year_data, 'modelo') });
-
-        // Save to cache
-        cachedStats = { key: cacheKey, data: rpcData };
-      }
-    } catch (error) {
-      console.error('Error fetching stats via RPC:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, [selectedDate, selectedMonth, selectedYear]);
-
   return (
     <>
-      <TopBar title="Panel Ejecutivo de Control" />
+      <TopBar title="Inicio - POS CRM" />
       
-      <div className="px-lg pt-md">
-        <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full w-fit animate-pulse">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-          <span className="text-[10px] font-bold text-green-700 uppercase tracking-widest">
-            {loading ? 'Sincronizando...' : 'Sincronización en Vivo'}
-          </span>
-        </div>
-      </div>
-      
-      <main className="p-lg space-y-lg max-w-[1440px] mx-auto w-full">
-        {/* KPI Section */}
-        <div className="grid grid-cols-1 gap-md">
-          <div className="bg-white border border-outline-variant p-lg rounded-2xl hover:bg-surface-container-low transition-all shadow-sm group border-l-4 border-l-secondary">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-lg">
-                <div className="p-4 rounded-xl bg-secondary-container/30 transition-transform group-hover:scale-110">
-                  <Monitor className="w-8 h-8 text-secondary" />
-                </div>
-                <div>
-                  <p className="text-label-lg text-on-surface-variant font-medium">Terminales Gestionadas</p>
-                  <h2 className="text-[40px] font-bold text-on-surface leading-tight">
-                    {loading ? "..." : totalGlobal.toLocaleString()}
-                  </h2>
-                </div>
+      <main className="p-lg space-y-lg max-w-[1440px] mx-auto w-full min-h-[calc(100vh-100px)] flex flex-col justify-center">
+        {/* Welcome Section */}
+        <section className="relative overflow-hidden bg-white border border-outline-variant p-xl rounded-[48px] shadow-2xl shadow-primary/5">
+          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-secondary/5 rounded-full blur-3xl" />
+          
+          <div className="relative z-10 py-10">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full mb-6">
+                <Zap className="w-4 h-4 text-primary animate-pulse" />
+                <span className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Sistema de Gestión POS</span>
               </div>
-              <div className="text-right">
-                <span className="text-label-md font-bold px-3 py-1 rounded-full text-blue-600 bg-blue-50">
-                  Estable
-                </span>
-                <p className="text-label-md text-outline mt-2">Total en {allyTables.length} aliados</p>
-              </div>
+              
+              <h1 className="text-[56px] font-black tracking-tighter text-on-surface leading-[1.1] mb-6">
+                Bienvenido al Panel Central <br /> 
+                <span className="text-primary text-opacity-80">POS-CRM</span>
+              </h1>
+              
+              <p className="text-body-xl text-on-surface-variant max-w-2xl mx-auto">
+                Tu plataforma unificada para el monitoreo de terminales, gestión de aliados y control de inventario en tiempo real. Selecciona una acción para comenzar.
+              </p>
             </div>
-          </div>
-        </div>
 
-        {/* Bento Grid Content */}
-        <div className="grid grid-cols-1 gap-md items-stretch">
-          {/* Daily Summary Section */}
-          <div className="bg-white border border-outline-variant rounded-xl p-lg shadow-sm flex flex-col hover:bg-slate-50/50 transition-all group">
-            <div className="flex justify-between items-center mb-lg">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="relative group/cal cursor-pointer"
-                  onClick={() => dateInputRef.current?.showPicker?.()}
-                >
-                  <input 
-                    ref={dateInputRef}
-                    type="date" 
-                    className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-                    onChange={(e) => {
-                      if (e.target.value) setSelectedDate(new Date(e.target.value));
-                    }}
-                  />
-                  <div className="flex flex-col items-center bg-primary/10 border border-primary/20 rounded-xl px-3 py-1 shadow-sm group-hover/cal:bg-primary group-hover/cal:border-primary transition-all">
-                    <p className="text-[10px] font-black text-primary uppercase leading-tight group-hover/cal:text-white">
-                      {monthNames[selectedDate.getMonth()]}
-                    </p>
-                    <p className="text-xl font-black text-primary leading-tight group-hover/cal:text-white">
-                      {selectedDate.getDate().toString().padStart(2, '0')}
-                    </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-lg max-w-5xl mx-auto">
+              <Link 
+                href="/terminals" 
+                className="group p-xl bg-slate-50/50 border border-outline-variant rounded-[32px] hover:bg-white hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 transition-all duration-500"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="p-5 rounded-2xl bg-white border border-outline-variant group-hover:bg-primary group-hover:border-primary transition-all duration-500 shadow-sm group-hover:shadow-lg group-hover:shadow-primary/30 mb-6">
+                    <Search className="w-8 h-8 text-primary group-hover:text-white transition-colors" />
                   </div>
-                </div>
-                <div>
-                  <h3 className="text-h3 text-on-surface font-black uppercase tracking-tight">Ingresos del Día</h3>
-                  <p className="text-[10px] font-bold text-outline uppercase tracking-widest mt-0.5">
-                    {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  <h4 className="font-black text-on-surface uppercase text-sm tracking-widest mb-3">Gestión de Terminales</h4>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Monitorea equipos, revisa estatus y realiza búsquedas globales por serial.
                   </p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-4xl font-black text-primary">+{dayStats.total}</p>
-                <p className="text-[10px] font-bold text-green-600 uppercase">Equipos hoy</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
-              <div>
-                <p className="text-[10px] font-black text-outline uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Plus className="w-3 h-3" />
-                  Por Aliado
-                </p>
-                <div className="space-y-2">
-                  {dayStats.allies.length > 0 ? dayStats.allies.map(ally => (
-                    <div key={ally.name} className="flex items-center justify-between group/item">
-                      <span className="text-xs font-bold text-on-surface-variant uppercase tracking-tighter">{ally.name}</span>
-                      <div className="flex items-center gap-3 flex-1 px-4">
-                        <div className="h-1.5 bg-slate-100 rounded-full flex-1 overflow-hidden">
-                          <div className={cn("h-full rounded-full bg-primary transition-all")} style={{ width: `${(ally.count / dayStats.total) * 100}%` }} />
-                        </div>
-                        <span className="text-xs font-black text-on-surface w-4 text-right">{ally.count}</span>
-                      </div>
-                    </div>
-                  )) : (
-                    <p className="text-[10px] text-outline italic">Sin registros para esta fecha</p>
-                  )}
-                </div>
-              </div>
+              </Link>
 
-              <div>
-                <p className="text-[10px] font-black text-outline uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Smartphone className="w-3 h-3" />
-                  Por Modelo
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {dayStats.models.length > 0 ? dayStats.models.map(model => (
-                    <div key={model.name} className="px-4 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl flex items-center gap-3">
-                      <span className="text-[10px] font-black text-on-surface">{model.name}</span>
-                      <div className="w-px h-3 bg-outline-variant" />
-                      <span className="text-[11px] font-black text-primary">{model.count}</span>
-                    </div>
-                  )) : (
-                    <p className="text-[10px] text-outline italic">Sin registros para esta fecha</p>
-                  )}
+              <Link 
+                href="/inventory" 
+                className="group p-xl bg-slate-50/50 border border-outline-variant rounded-[32px] hover:bg-white hover:shadow-2xl hover:shadow-secondary/10 hover:-translate-y-2 transition-all duration-500"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="p-5 rounded-2xl bg-white border border-outline-variant group-hover:bg-secondary group-hover:border-secondary transition-all duration-500 shadow-sm group-hover:shadow-lg group-hover:shadow-secondary/30 mb-6">
+                    <LayoutGrid className="w-8 h-8 text-secondary group-hover:text-white transition-colors" />
+                  </div>
+                  <h4 className="font-black text-on-surface uppercase text-sm tracking-widest mb-3">Control de Inventario</h4>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Administra el stock disponible de modelos, repuestos y accesorios.
+                  </p>
                 </div>
-              </div>
+              </Link>
+
+              <Link 
+                href="/datacenter/clientes" 
+                className="group p-xl bg-slate-50/50 border border-outline-variant rounded-[32px] hover:bg-white hover:shadow-2xl hover:shadow-tertiary/10 hover:-translate-y-2 transition-all duration-500"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="p-5 rounded-2xl bg-white border border-outline-variant group-hover:bg-tertiary group-hover:border-tertiary transition-all duration-500 shadow-sm group-hover:shadow-lg group-hover:shadow-tertiary/30 mb-6">
+                    <FileText className="w-8 h-8 text-tertiary group-hover:text-white transition-colors" />
+                  </div>
+                  <h4 className="font-black text-on-surface uppercase text-sm tracking-widest mb-3">Data Center</h4>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Accede a las bases de datos maestras de clientes y aliados estratégicos.
+                  </p>
+                </div>
+              </Link>
             </div>
           </div>
+        </section>
 
-          {/* Monthly Summary Section */}
-          <div className="bg-white border border-outline-variant rounded-xl p-lg shadow-sm flex flex-col hover:bg-slate-50/50 transition-all group">
-            <div className="flex justify-between items-start mb-lg">
-              <div>
-                <h3 className="text-h3 text-on-surface font-black uppercase tracking-tight">Acumulado Mes</h3>
-                <div className="mt-2 flex items-center gap-2">
-                  <select 
-                    value={fullMonthNames[selectedMonth]}
-                    onChange={(e) => setSelectedMonth(fullMonthNames.indexOf(e.target.value))}
-                    className="bg-secondary/10 border border-secondary/20 rounded-lg px-2 py-1 text-[10px] font-black text-secondary uppercase outline-none cursor-pointer hover:bg-secondary/20 transition-all"
-                  >
-                    {fullMonthNames.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-4xl font-black text-secondary">{monthStats.total}</p>
-                <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Equipos total</p>
-              </div>
+        {/* Quick Help Tip */}
+        <div className="flex justify-center">
+          <div className="flex items-center gap-3 px-6 py-3 bg-on-surface/5 rounded-full border border-outline-variant/30">
+            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+              <Smartphone className="w-4 h-4 text-primary" />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
-              <div>
-                <p className="text-[10px] font-black text-outline uppercase tracking-[0.2em] mb-4">Top Aliados del Mes</p>
-                <div className="space-y-3">
-                  {monthStats.allies.slice(0, 3).map(ally => (
-                    <div key={ally.name} className="p-3 bg-secondary/5 rounded-xl border border-secondary/10">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-[10px] font-black text-on-surface uppercase">{ally.name}</span>
-                        <span className="text-xs font-black text-secondary">{ally.count} u.</span>
-                      </div>
-                      <div className="w-full h-1 bg-white rounded-full overflow-hidden">
-                        <div className="h-full bg-secondary" style={{ width: `${(ally.count / monthStats.total) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                  {monthStats.allies.length === 0 && <p className="text-[10px] text-outline italic">Sin registros</p>}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-black text-outline uppercase tracking-[0.2em] mb-4">Inventario Mensual</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {monthStats.models.slice(0, 4).map(model => (
-                    <div key={model.name} className="p-3 bg-slate-50 border border-outline-variant/30 rounded-xl">
-                      <p className="text-[9px] font-bold text-outline uppercase tracking-tighter mb-1">{model.name}</p>
-                      <p className="text-lg font-black text-on-surface leading-none">{model.count}</p>
-                    </div>
-                  ))}
-                  {monthStats.models.length === 0 && <p className="text-[10px] text-outline italic col-span-2">Sin registros</p>}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Yearly Summary Section */}
-          <div className="bg-white border border-outline-variant rounded-xl p-lg shadow-sm flex flex-col hover:bg-slate-50/50 transition-all group">
-            <div className="flex justify-between items-start mb-lg">
-              <div>
-                <h3 className="text-h3 text-on-surface font-black uppercase tracking-tight">Proyección Anual</h3>
-                <div className="mt-2 flex items-center gap-2">
-                  <select 
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="bg-tertiary/10 border border-tertiary/20 rounded-lg px-2 py-1 text-[10px] font-black text-tertiary uppercase outline-none cursor-pointer hover:bg-tertiary/20 transition-all"
-                  >
-                    {[2022, 2023, 2024, 2025].map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-4xl font-black text-tertiary">{yearStats.total.toLocaleString()}</p>
-                <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest">Unidades ingresadas</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
-              <div>
-                <p className="text-[10px] font-black text-outline uppercase tracking-[0.2em] mb-4">Líderes de Mercado</p>
-                <div className="space-y-4">
-                  {yearStats.allies.slice(0, 3).map((leader, i) => (
-                    <div key={leader.name} className="flex items-center gap-4">
-                      <div className={cn("w-3 h-3 rounded-full shadow-sm", i === 0 ? "bg-primary" : i === 1 ? "bg-secondary" : "bg-tertiary")} />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-[10px] font-black uppercase mb-1">
-                          <span>{leader.name}</span>
-                          <span className="text-tertiary">{Math.round((leader.count / yearStats.total) * 100)}%</span>
-                        </div>
-                        <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={cn("h-full rounded-full", i === 0 ? "bg-primary" : i === 1 ? "bg-secondary" : "bg-tertiary")} style={{ width: `${(leader.count / yearStats.total) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {yearStats.allies.length === 0 && <p className="text-[10px] text-outline italic">Sin registros</p>}
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-center bg-tertiary/5 rounded-[24px] p-6 border border-tertiary/10 text-center">
-                <h4 className="text-[10px] font-black text-tertiary uppercase tracking-widest mb-2">Modelo Dominante</h4>
-                <p className="text-4xl font-black text-on-surface mb-1">
-                  {yearStats.models[0]?.name || '---'}
-                </p>
-                <p className="text-xs font-bold text-outline uppercase tracking-tighter">
-                  {yearStats.models[0]?.count || 0} Unidades Registradas
-                </p>
-              </div>
-            </div>
+            <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+              ¿Necesitas ayuda? Visita nuestro <Link href="/support" className="text-primary hover:underline">Centro de Soporte</Link>
+            </p>
           </div>
         </div>
-
-        {/* Floating Action Button */}
-        <button className="fixed bottom-margin right-margin w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50">
-          <Plus className="w-6 h-6" />
-        </button>
       </main>
+
     </>
   );
 }

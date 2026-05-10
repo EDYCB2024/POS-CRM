@@ -2,12 +2,13 @@
 
 import { TopBar } from "@/components/layout/TopBar";
 import { supabase } from '@/lib/supabase';
-import { 
-  Smartphone, 
-  CheckCircle, 
-  AlertCircle, 
-  Plus, 
-  Filter, 
+import Link from 'next/link';
+import {
+  Smartphone,
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  Filter,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
@@ -20,10 +21,12 @@ import {
   Loader2,
   Search,
   ShieldCheck,
-  ShieldX
+  ShieldX,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
+import { TerminalDetailsModal } from "@/components/modals/TerminalDetailsModal";
 
 
 const stats = [
@@ -58,6 +61,12 @@ export default function TerminalsPage() {
     alerts: Math.floor((cachedTerminalsData?.total || 0) * 0.04)
   });
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSerial, setSelectedSerial] = useState('');
+  const [selectedSlug, setSelectedSlug] = useState('');
+  const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [exportProgress, setExportProgress] = useState(0);
+
   const fetchRealData = async (force: boolean = false) => {
     if (!force && cachedTerminalsData && !searchQuery) {
       setLoading(false);
@@ -68,12 +77,12 @@ export default function TerminalsPage() {
     try {
       if (searchQuery) {
         setIsSearching(true);
-        const { data, error } = await supabase.rpc('search_terminals', { 
+        const { data, error } = await supabase.rpc('search_terminals', {
           p_query: searchQuery,
-          p_limit: 20 
+          p_limit: 20
         });
         if (error) throw error;
-        
+
         const formatted = (data || []).map((t: any) => ({
           ...t,
           sourceTable: t.source_table
@@ -112,6 +121,14 @@ export default function TerminalsPage() {
     if (!searchQuery) {
       fetchRealData();
     }
+
+    // Check for creation action in URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsModalOpen(true);
+      // Remove param after opening
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, [searchQuery]);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
@@ -127,104 +144,149 @@ export default function TerminalsPage() {
   ];
 
   const handleExportGlobal = async () => {
-    const fileName = window.prompt('Nombre del archivo:', `CRM_Global_Export_${new Date().toISOString().split('T')[0]}`);
-    if (!fileName) return;
+    // 1. Get handle immediately to preserve user gesture
+    let fileHandle: any = null;
+    const defaultFileName = `CRM_Global_Export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: defaultFileName,
+          types: [{
+            description: 'Excel Workbook',
+            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
+          }],
+        });
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        console.error('Picker error:', err);
+      }
+    }
 
     setExporting(true);
+    setExportProgress(0);
     try {
       const { utils, write } = await import('xlsx');
-      
+
+      // Fetch dynamic allies from config
+      const { data: alliesConfig } = await supabase
+        .from('allies_config')
+        .select('name, table_name')
+        .eq('is_active', true);
+
       const tables = [
-        { id: 'vatc', name: 'VATC' },
-        { id: 'banplus', name: 'Banplus' },
-        { id: 'ccr', name: 'CCR' },
-        { id: 'instapago', name: 'Instapago' },
-        { id: 'platco', name: 'Platco' },
-        { id: 'platco_pos', name: 'Platco POS' },
-        { id: 'exterior', name: 'Exterior' },
-        { id: 'bancaribe', name: 'Bancaribe' },
-        { id: 'tokenp', name: 'Token Pagos' },
-        { id: 'bactivo', name: 'Banco Activo' },
-        { id: 'poscom', name: 'POS Comercial' },
-        { id: 'paytech', name: 'Paytech' },
-        { id: 'bestpay', name: 'Bestpay' },
-        { id: 'bancrecer', name: 'Bancrecer' },
-        { id: 'delsur', name: 'Del Sur' },
-        { id: 'otros', name: 'Otros' },
-        { id: 'bd_platco', name: 'DB Platco' }
+        ...(alliesConfig || []).map(a => ({ id: a.table_name, name: a.name })),
+        { id: 'bd_clientes', name: 'BD Clientes' },
+        { id: 'bd_platco', name: 'BD Platco' }
       ];
 
       const wb = utils.book_new();
+      const totalTables = tables.length;
 
-      for (const table of tables) {
-        const { data, error } = await supabase
-          .from(table.id)
-          .select('*');
-        
-        if (error) {
-          console.error(`Error fetching ${table.id}:`, error);
-          continue;
+      for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        setExportProgress(Math.round((i / totalTables) * 100));
+
+        let allData: any[] = [];
+        let from = 0;
+        const limit = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from(table.id)
+            .select('*')
+            .range(from, from + limit - 1);
+
+          if (error) {
+            console.error(`Error fetching ${table.id}:`, error);
+            hasMore = false;
+            continue;
+          }
+
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += limit;
+            if (data.length < limit) hasMore = false;
+          } else {
+            hasMore = false;
+          }
         }
 
-        if (data && data.length > 0) {
-          const ws = utils.json_to_sheet(data);
-          utils.book_append_sheet(wb, ws, table.name.substring(0, 31)); 
+        if (allData.length > 0) {
+          const formattedData = allData.map(item => {
+            const newItem: any = {};
+            Object.keys(item).forEach(key => {
+              if (!['id', 'created_at', 'modificado_crm'].includes(key)) {
+                newItem[key.replace(/_/g, ' ').toUpperCase()] = item[key];
+              }
+            });
+            return newItem;
+          });
+
+          const ws = utils.json_to_sheet(formattedData);
+          utils.book_append_sheet(wb, ws, table.name.substring(0, 31));
         }
       }
 
+      setExportProgress(100);
       const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-      // Native Save As dialog (File System Access API)
-      if ('showSaveFilePicker' in window) {
-        try {
-          const handle = await (window as any).showSaveFilePicker({
-            suggestedName: `${fileName.replace('.xlsx', '')}.xlsx`,
-            types: [{
-              description: 'Excel Workbook',
-              accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
-            }],
-          });
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-        } catch (err: any) {
-          if (err.name !== 'AbortError') throw err;
-        }
+      // 3. Write to handle or fallback
+      if (fileHandle) {
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${fileName.replace('.xlsx', '')}.xlsx`;
+        a.download = defaultFileName;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
+
     } catch (err) {
       console.error('Error exporting global data:', err);
-      alert('Error al exportar los datos globales');
+      alert('Error al exportar los datos. Por favor revise la consola.');
     } finally {
       setExporting(false);
+      setTimeout(() => setExportProgress(0), 1000);
     }
   };
+
 
   return (
     <>
       <TopBar title="Gestión de Terminales" />
-      
+
       <section className="p-margin">
         <div className="mb-xl flex justify-between items-end">
           <div>
             <h1 className="mb-xs">Gestión de Terminales</h1>
             <p className="text-body-md text-on-surface-variant">Monitoreo y exportación global de terminales POS.</p>
           </div>
-          <button 
-            onClick={handleExportGlobal}
-            disabled={exporting}
-            className="flex items-center gap-sm bg-primary text-on-primary px-lg py-md rounded-xl font-semibold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {exporting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-            {exporting ? 'Exportando...' : 'Exportar Global Excel'}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleExportGlobal}
+              disabled={exporting}
+              className="flex items-center gap-sm bg-primary text-on-primary px-lg py-md rounded-xl font-semibold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 min-w-[200px] justify-center"
+            >
+              {exporting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+              {exporting ? `Exportando (${exportProgress}%)` : 'Exportar Global Excel'}
+            </button>
+            {exporting && (
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${exportProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -248,7 +310,7 @@ export default function TerminalsPage() {
             <div className="flex flex-wrap gap-md items-center w-full md:w-auto">
               <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-                <input 
+                <input
                   type="text"
                   placeholder="Buscar serial o comercio..."
                   value={searchQuery}
@@ -257,7 +319,7 @@ export default function TerminalsPage() {
                   className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant rounded-xl text-xs font-bold text-primary placeholder:text-outline/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
-              <button 
+              <button
                 onClick={() => fetchRealData(true)}
                 className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]"
               >
@@ -292,7 +354,16 @@ export default function TerminalsPage() {
                   </td>
                 </tr>
               ) : recentTerminals.map((terminal) => (
-                <tr key={`${terminal.sourceTable}-${terminal.id}`} className="hover:bg-surface-container-low/50 transition-colors group">
+                <tr
+                  key={`${terminal.sourceTable}-${terminal.id}`}
+                  onClick={() => {
+                    setSelectedSerial(terminal.serial || terminal.serial_de_remplazo);
+                    setSelectedSlug(terminal.sourceTable);
+                    setSelectedRow(terminal);
+                    setIsModalOpen(true);
+                  }}
+                  className="hover:bg-primary/5 transition-colors group cursor-pointer"
+                >
                   <td className="px-lg py-md">
                     <p className="font-semibold text-primary">{terminal.serial || terminal.serial_de_remplazo}</p>
                     <p className="text-xs text-on-surface-variant">{terminal.modelo || 'N/A'}</p>
@@ -306,8 +377,8 @@ export default function TerminalsPage() {
                   <td className="px-lg py-md">
                     <div className={cn(
                       "inline-flex items-center px-sm py-xs rounded-full text-label-sm font-bold border",
-                      terminal.estatus?.toLowerCase().includes('entregado') || terminal.estatus?.toLowerCase().includes('operativo') 
-                        ? "bg-green-50 text-green-700 border-green-200" 
+                      terminal.estatus?.toLowerCase().includes('entregado') || terminal.estatus?.toLowerCase().includes('operativo')
+                        ? "bg-green-50 text-green-700 border-green-200"
                         : "bg-amber-50 text-amber-700 border-amber-200"
                     )}>
                       {terminal.estatus || 'EN REVISION'}
@@ -331,10 +402,20 @@ export default function TerminalsPage() {
                       {terminal.sourceTable.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-lg py-md text-right">
-                    <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                  <td className="px-lg py-md text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-2">
+                      <Link 
+                        href={`/print/informe?serial=${terminal.serial || terminal.serial_de_remplazo}`}
+                        target="_blank"
+                        className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-all"
+                        title="Ver Informe"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -342,6 +423,19 @@ export default function TerminalsPage() {
           </table>
         </div>
       </section>
+
+      <TerminalDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedRow(null)
+        }}
+        serial={selectedSerial}
+        currentSlug={selectedSlug}
+        isNew={!selectedSerial}
+        onSuccess={() => fetchRealData(true)}
+        initialData={selectedRow}
+      />
     </>
   );
 }
