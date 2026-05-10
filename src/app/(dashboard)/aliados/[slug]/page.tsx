@@ -53,26 +53,7 @@ export default function AllyPage() {
   const [exportProgress, setExportProgress] = useState(0)
   const pageSize = 20
 
-        'pos-comercial': 'poscom',
-        'token-pagos': 'tokenp',
-        'banco-activo': 'bactivo'
-      }
-      const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
-      const { error: updateError } = await supabase
-        .from(tableName)
-        .update({ estatus: newStatus, modificado_crm: true })
-        .in('id', selectedIds)
 
-      if (updateError) throw updateError
-      
-      setSelectedIds([])
-      window.location.reload() 
-    } catch (err: any) {
-      alert("Error al actualizar: " + err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
 
   const fetchData = async () => {
