@@ -831,7 +831,8 @@ export function TerminalDetailsModal({
                 if (isNew) {
                   onClose();
                 } else {
-                  setFormData(mainRecord);
+                  const original = history.find(r => r.sourceTable === targetTableName) || history[0];
+                  setFormData(original);
                   setIsEditing(false);
                 }
               }}
