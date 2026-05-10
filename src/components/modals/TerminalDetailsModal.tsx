@@ -217,7 +217,7 @@ export function TerminalDetailsModal({
             .limit(1)
             .maybeSingle();
           
-          const lastId = data ? parseInt(data[nidCol]) : 0;
+          const lastId = data ? parseInt((data as any)[nidCol]) : 0;
           newFormData[nidCol] = isNaN(lastId) ? 1 : lastId + 1;
         }
 
