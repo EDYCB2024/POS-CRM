@@ -9,9 +9,11 @@ import {
   Info
 } from 'lucide-react';
 import { TerminalDetailsModal } from "@/components/modals/TerminalDetailsModal";
+import { BulkAddModal } from "@/components/modals/BulkAddModal";
 
 export default function NewTerminalSelectionPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   return (
     <>
@@ -47,10 +49,9 @@ export default function NewTerminalSelectionPage() {
             </div>
           </button>
 
-          {/* Bulk Addition Card */}
-          <Link 
-            href="/terminals/new/bulk" 
-            className="group relative overflow-hidden bg-white border border-outline-variant p-xl rounded-[40px] hover:shadow-2xl hover:shadow-secondary/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center text-center"
+          <button 
+            onClick={() => setIsBulkModalOpen(true)}
+            className="group relative overflow-hidden bg-white border border-outline-variant p-xl rounded-[40px] hover:shadow-2xl hover:shadow-secondary/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center text-center w-full"
           >
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
               <Files className="w-32 h-32 text-secondary" />
@@ -62,13 +63,13 @@ export default function NewTerminalSelectionPage() {
             
             <h2 className="text-2xl font-black text-on-surface mb-4">Añadir Masivo</h2>
             <p className="text-sm text-on-surface-variant leading-relaxed mb-8 max-w-[280px]">
-              Carga múltiples equipos de forma simultánea mediante un archivo Excel o CSV.
+              Carga múltiples equipos mediante un listado de seriales o un archivo Excel/CSV.
             </p>
             
             <div className="mt-auto px-6 py-2 bg-slate-50 rounded-full text-[10px] font-black text-secondary uppercase tracking-[0.2em] group-hover:bg-secondary group-hover:text-white transition-all">
-              Subir Archivo
+              Abrir Carga Masiva
             </div>
-          </Link>
+          </button>
         </div>
 
         {/* Info Box */}
@@ -91,6 +92,11 @@ export default function NewTerminalSelectionPage() {
         serial=""
         currentSlug=""
         isNew={true}
+      />
+
+      <BulkAddModal 
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
       />
     </>
   );

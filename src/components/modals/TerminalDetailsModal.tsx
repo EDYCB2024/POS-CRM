@@ -19,7 +19,8 @@ import {
   Package,
   Wrench,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  PlusCircle
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
@@ -77,9 +78,10 @@ export function TerminalDetailsModal({
     cargador: false,
     bateria: false,
     tapa: false,
-    rollos: false,
     base: false
   })
+  const [statuses, setStatuses] = useState<string[]>([])
+  const [availableModels, setAvailableModels] = useState<{ linux: string[], android: string[] }>({ linux: [], android: [] })
 
   const reportRef = useRef<HTMLDivElement>(null)
 
@@ -99,19 +101,74 @@ export function TerminalDetailsModal({
   // Fetch allies and defaults
   useEffect(() => {
     async function fetchData() {
+      // 1. Fetch basic allies config
       const { data: alliesData } = await supabase
         .from('allies_config')
         .select('name, table_name')
         .eq('is_active', true)
-        .order('name')
 
-      if (alliesData) setAlliesList(alliesData)
+      if (alliesData) {
+        // 2. For each ally, fetch its max NID to determine sort order
+        const alliesWithNid = await Promise.all(
+          alliesData.map(async (ally) => {
+            const nidCol = ['platco', 'platco_pos'].includes(ally.table_name) ? 'nro' : 'n';
+            const { data } = await supabase
+              .from(ally.table_name)
+              .select(nidCol)
+              .order(nidCol, { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            return {
+              ...ally,
+              maxNid: data ? (parseInt(data[nidCol]) || 0) : 0
+            };
+          })
+        );
+
+        // 3. Sort by maxNid DESC
+        alliesWithNid.sort((a, b) => b.maxNid - a.maxNid);
+        setAlliesList(alliesWithNid);
+      }
 
       const { data: defaultsData } = await supabase
         .from('default_aliados')
         .select('*')
 
       if (defaultsData) setDefaultAliados(defaultsData)
+
+      // Fetch models from central table - Explicit schema
+      const { data: modData, error: modError } = await supabase
+        .from('modelos')
+        .select('linux, android')
+        .order('id');
+      
+      if (modError) {
+        console.error('Error fetching modelos:', modError);
+      }
+
+      if (modData) {
+        const linux = Array.from(new Set(modData.map((m: any) => m.linux).filter(Boolean))) as string[];
+        const android = Array.from(new Set(modData.map((m: any) => m.android).filter(Boolean))) as string[];
+        console.log('Models loaded:', { linux, android });
+        setAvailableModels({ linux, android });
+      }
+
+      // Fetch statuses
+      const { data: statusData, error: statusError } = await supabase
+        .from('estatus')
+        .select('estatus')
+        .order('estatus');
+      
+      if (statusError) {
+        console.error('Error fetching estatus:', statusError);
+      }
+
+      if (statusData) {
+        const list = statusData.map(s => s.estatus).filter(Boolean);
+        console.log('Statuses loaded:', list);
+        setStatuses(list);
+      }
     }
 
     if (isOpen) {
@@ -119,6 +176,7 @@ export function TerminalDetailsModal({
       if (isNew) {
         setSelectedTable('')
         setFormData(null)
+        setIsEditing(true)
       }
     } else {
       // Reset when closing
@@ -130,42 +188,150 @@ export function TerminalDetailsModal({
   // DYNAMIC SCHEMA GENERATION
   useEffect(() => {
     if (isNew && selectedTable) {
-      const columns = TABLE_SCHEMAS[selectedTable] || ["serial", "razon_social", "rif", "modelo", "estatus", "garantia", "fecha", "observaciones"];
-      const newFormData: any = {};
+      async function prefillData() {
+        const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
+        if (!selectedAllyConfig) return;
+        
+        const actualTableName = selectedAllyConfig.table_name;
+        const columns = TABLE_SCHEMAS[actualTableName] || ["serial", "razon_social", "rif", "modelo", "estatus", "garantia", "fecha", "observaciones"];
+        const newFormData: any = {};
+        
+        columns.forEach(col => {
+          newFormData[col] = '';
+        });
 
-      columns.forEach(col => {
-        newFormData[col] = '';
-      });
+        // Pre-fill known data
+        if (newFormData.hasOwnProperty('serial')) newFormData.serial = serial || '';
+        if (newFormData.hasOwnProperty('fecha')) newFormData.fecha = new Date().toISOString().split('T')[0];
+        if (newFormData.hasOwnProperty('estatus')) newFormData.estatus = 'EN REVISION';
+        if (newFormData.hasOwnProperty('garantia')) newFormData.garantia = 'POR DEFINIR';
+        if (newFormData.hasOwnProperty('estatus_del_caso')) newFormData.estatus_del_caso = 'CASO ABIERTO';
 
-      // Pre-fill known data
-      if (newFormData.hasOwnProperty('serial')) newFormData.serial = serial || '';
-      if (newFormData.hasOwnProperty('fecha')) newFormData.fecha = new Date().toISOString().split('T')[0];
-      if (newFormData.hasOwnProperty('estatus')) newFormData.estatus = 'EN REVISION';
-      if (newFormData.hasOwnProperty('garantia')) newFormData.garantia = 'SI';
-      if (newFormData.hasOwnProperty('estatus_del_caso')) newFormData.estatus_del_caso = 'CASO ABIERTO';
+        // Fetch Next NID
+        const nidCol = columns.find(c => ['n', 'nro', 'ne'].includes(c));
+        if (nidCol) {
+          const { data } = await supabase
+            .from(actualTableName)
+            .select(nidCol)
+            .order(nidCol, { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          const lastId = data ? parseInt(data[nidCol]) : 0;
+          newFormData[nidCol] = isNaN(lastId) ? 1 : lastId + 1;
+        }
 
-      // Ally specific defaults from default_aliados
-      const selectedAllyConfig = alliesList.find(a => a.table_name === selectedTable);
-      if (selectedAllyConfig) {
+        // Ally specific defaults from default_aliados
         const defaultData = defaultAliados.find(d =>
-          d.aliado.toLowerCase() === selectedAllyConfig.name.toLowerCase()
+          d.aliado.toLowerCase() === selectedTable.toLowerCase()
         );
 
-        if (defaultData) {
-          if (newFormData.hasOwnProperty('rif')) newFormData.rif = defaultData.rif === 'PENDIENTE' ? '' : defaultData.rif;
-          if (newFormData.hasOwnProperty('razon_social')) newFormData.razon_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
-          if (newFormData.hasOwnProperty('razn_social')) newFormData.razn_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
-          if (newFormData.hasOwnProperty('aliado')) newFormData.aliado = selectedAllyConfig.name;
-        }
-      }
+          if (defaultData) {
+            if (newFormData.hasOwnProperty('rif')) newFormData.rif = defaultData.rif === 'PENDIENTE' ? '' : defaultData.rif;
+            if (newFormData.hasOwnProperty('razon_social')) newFormData.razon_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+            if (newFormData.hasOwnProperty('razn_social')) newFormData.razn_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+            if (newFormData.hasOwnProperty('aliado')) newFormData.aliado = selectedAllyConfig.name;
+          }
 
-      setFormData(newFormData);
-      setIsEditing(true);
-      setActiveTab('edit');
+          setFormData(newFormData);
+          setIsEditing(true);
+          setActiveTab('edit');
+        }
+
+      prefillData();
     } else if (isNew && !selectedTable) {
       setFormData(null);
     }
   }, [selectedTable, isNew, alliesList, defaultAliados, serial]);
+  
+  const handleExternalLookup = async () => {
+    if (!formData?.serial) {
+      alert('Por favor ingrese un serial');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
+      const actualTableName = selectedAllyConfig?.table_name || selectedTable;
+
+      if (actualTableName === 'vatc') {
+        const { data } = await supabase
+          .from('bd_clientes')
+          .select('razon, cliente, procesadora')
+          .eq('serial', formData.serial);
+
+        if (data && data.length > 0) {
+          const latestRecord = data[data.length - 1];
+          setFormData((prev: any) => ({
+            ...prev,
+            factura: 'NO ENCONTRADO',
+            procesadora: latestRecord.procesadora || 'NO ENCONTRADO',
+            razon_social: latestRecord.razon || 'NO ENCONTRADO',
+            rif: latestRecord.cliente || 'NO ENCONTRADO'
+          }));
+          if (data.length > 1) {
+            alert(`¡Atención! Este serial se encuentra ${data.length} veces en la base de datos de clientes. Se cargó el registro más reciente.`);
+          } else {
+            alert('Datos de cliente cargados.');
+          }
+        } else {
+          alert('Serial no encontrado en la base de datos de clientes.');
+        }
+      } else if (actualTableName === 'platco' || actualTableName === 'platco_pos') {
+        const { data } = await supabase
+          .from('bd_platco')
+          .select('fecha_de_entrega')
+          .eq('seriales', formData.serial);
+
+        if (data && data.length > 0) {
+          const latestRecord = data[data.length - 1];
+          setFormData((prev: any) => ({
+            ...prev,
+            fecha_venta: latestRecord.fecha_de_entrega || 'NO ENCONTRADO'
+          }));
+          if (data.length > 1) {
+            alert(`¡Atención! Este serial se encuentra ${data.length} veces en la base de datos de Platco. Se cargó la fecha más reciente.`);
+          } else {
+            alert('Fecha de venta cargada.');
+          }
+        } else {
+          alert('Serial no encontrado en la base de datos de Platco.');
+        }
+      }
+    } catch (err) {
+      console.error('Error in external lookup:', err);
+      alert('Error al consultar la base de datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // AUTO-CALCULATE INGRESO NUMBER BASED ON SERIAL COUNT IN CURRENT ALLY'S TABLE
+  useEffect(() => {
+    if (isNew && selectedTable && formData?.serial && formData.serial.length >= 4) {
+      const fetchIngresoCount = async () => {
+        try {
+          const { count, error } = await supabase
+            .from(selectedTable)
+            .select('*', { count: 'exact', head: true })
+            .eq('serial', formData.serial);
+
+          if (!error && count !== null) {
+            setFormData((prev: any) => ({
+              ...prev,
+              ingreso: (count + 1).toString()
+            }));
+          }
+        } catch (err) {
+          console.error('Error calculating ingreso count:', err);
+        }
+      };
+
+      const timer = setTimeout(fetchIngresoCount, 500); // Small debounce
+      return () => clearTimeout(timer);
+    }
+  }, [formData?.serial, selectedTable, isNew]);
 
   // Fetch Main Record first
   useEffect(() => {
@@ -261,7 +427,7 @@ export function TerminalDetailsModal({
 
   const handleSave = async () => {
     const confirmSave = window.confirm('¿Está seguro de que desea guardar los cambios en este expediente?')
-    if (!confirmSave) return
+    if (!confirmSave) return false
 
     if (isNew && !selectedTable) {
       alert('Por favor seleccione un aliado de destino')
@@ -274,7 +440,10 @@ export function TerminalDetailsModal({
 
       let query;
       if (isNew) {
-        query = supabase.from(selectedTable).insert([{
+        const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
+        const actualTableName = selectedAllyConfig?.table_name || selectedTable;
+        
+        query = supabase.from(actualTableName).insert([{
           ...updateData,
           modificado_crm: true
         }])
@@ -294,9 +463,11 @@ export function TerminalDetailsModal({
       alert(isNew ? 'Registro creado exitosamente' : 'Cambios guardados correctamente')
       if (onSuccess) onSuccess()
       if (isNew) onClose()
+      return true
     } catch (err) {
       console.error('Error saving changes:', err)
       alert('Error al guardar los cambios')
+      return false
     } finally {
       setSaving(false)
     }
@@ -331,10 +502,14 @@ export function TerminalDetailsModal({
         <div className="px-8 py-6 bg-white border-b border-outline-variant flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-              <History className="w-6 h-6 text-primary" />
+              {isNew ? (
+                <PlusCircle className="w-6 h-6 text-primary" />
+              ) : (
+                <History className="w-6 h-6 text-primary" />
+              )}
             </div>
             <div>
-              <h3 className="text-xl font-black text-on-surface tracking-tight">Expediente del Equipo</h3>
+              <h3 className="text-xl font-black text-on-surface tracking-tight">{isNew ? 'Crear Expediente' : 'Expediente del Equipo'}</h3>
               <p className="text-[10px] font-black uppercase text-outline tracking-widest">{isNew ? 'Registro de nuevo ingreso' : 'Historial y Gestión Técnica'}</p>
             </div>
           </div>
@@ -356,7 +531,7 @@ export function TerminalDetailsModal({
             >
               <option value="" disabled>Seleccione un aliado...</option>
               {alliesList.map(ally => (
-                <option key={ally.table_name} value={ally.table_name}>
+                <option key={`${ally.table_name}-${ally.name}`} value={ally.name}>
                   {ally.name}
                 </option>
               ))}
@@ -372,7 +547,7 @@ export function TerminalDetailsModal({
               activeTab === 'info' ? "text-primary" : "text-outline hover:text-on-surface"
             )}
           >
-            Información
+            INFORMACION DEL POS
             {activeTab === 'info' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
           </button>
           {!isNew && (
@@ -387,16 +562,18 @@ export function TerminalDetailsModal({
               {activeTab === 'history' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('report')}
-            className={cn(
-              "px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
-              activeTab === 'report' ? "text-primary" : "text-outline hover:text-on-surface"
-            )}
-          >
-            Informe Técnico
-            {activeTab === 'report' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
-          </button>
+          {!isNew && (
+            <button
+              onClick={() => setActiveTab('report')}
+              className={cn(
+                "px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                activeTab === 'report' ? "text-primary" : "text-outline hover:text-on-surface"
+              )}
+            >
+              Informe Técnico
+              {activeTab === 'report' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
@@ -417,9 +594,9 @@ export function TerminalDetailsModal({
                     <div className="bg-white rounded-3xl border border-outline-variant overflow-hidden shadow-sm">
                       <table className="w-full text-left">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-outline-variant">
-                            <th className="px-8 py-4 text-[10px] font-black text-outline uppercase tracking-widest">Campo</th>
-                            <th className="px-8 py-4 text-[10px] font-black text-outline uppercase tracking-widest">Valor Registrado</th>
+                          <tr className="bg-primary border-b border-primary/20">
+                            <th className="px-8 py-4 text-[10px] font-black text-white uppercase tracking-widest">Campo</th>
+                            <th className="px-8 py-4 text-[10px] font-black text-white uppercase tracking-widest">Valor Registrado</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant/10">
@@ -468,19 +645,25 @@ export function TerminalDetailsModal({
                               const isDate = key.includes('fecha');
                               const isNid = key.toLowerCase() === 'id' ||
                                 key.toLowerCase() === 'nro' ||
-                                key.toLowerCase() === 'n';
+                                key.toLowerCase() === 'n' ||
+                                key.toLowerCase() === 'ne';
+                              const isBlockedField = key.toLowerCase() === 'ingreso' || 
+                                key.toLowerCase() === 'informes' || 
+                                key.toLowerCase() === 'informe' || 
+                                key.toLowerCase() === 'informe2';
                               let label = key.replace(/_/g, ' ').toUpperCase();
-                              if (label === 'N' || label === 'NRO') label = 'NID';
+                              if (label === 'N' || label === 'NRO' || label === 'NE') label = 'NID';
                               const displayValue = isDate ? (formData[key]?.split('T')[0] || '---') : (formData[key] || '---');
 
                               const isGarantia = key.toLowerCase() === 'garantia';
                               const isModelo = key.toLowerCase() === 'modelo';
                               const isProcesadora = key.toLowerCase() === 'procesadora';
+                              const isEstatus = key.toLowerCase() === 'estatus';
                               const isEstatusCaso = key.toLowerCase() === 'estatus_del_caso';
 
                               return (
-                                <tr key={key} className="group hover:bg-primary/5 transition-colors">
-                                  <td className="px-8 py-4 text-[10px] font-black text-on-surface-variant/60 uppercase tracking-widest group-hover:text-primary transition-colors">
+                                <tr key={key} className="group even:bg-slate-100/50 transition-colors hover:bg-slate-200/30">
+                                  <td className="px-6 py-3 text-[10px] font-black text-white bg-primary uppercase tracking-widest border-r border-white/10 w-[180px]">
                                     {label}
                                   </td>
                                   <td className="px-8 py-3">
@@ -505,17 +688,14 @@ export function TerminalDetailsModal({
                                       >
                                         <option value="">Seleccione modelo...</option>
                                         <optgroup label="-- LINUX --">
-                                          <option value="ME51">ME51</option>
-                                          <option value="SP600">SP600</option>
-                                          <option value="ME60">ME60</option>
+                                          {availableModels.linux.map(m => (
+                                            <option key={`linux-${m}`} value={m}>{m}</option>
+                                          ))}
                                         </optgroup>
                                         <optgroup label="-- ANDROID --">
-                                          <option value="N910">N910</option>
-                                          <option value="N910-A7">N910-A7</option>
-                                          <option value="N910-A10">N910-A10</option>
-                                          <option value="N750">N750</option>
-                                          <option value="N950S">N950S</option>
-                                          <option value="N950K">N950K</option>
+                                          {availableModels.android.map(m => (
+                                            <option key={`android-${m}`} value={m}>{m}</option>
+                                          ))}
                                         </optgroup>
                                       </select>
                                     ) : isProcesadora ? (
@@ -537,22 +717,50 @@ export function TerminalDetailsModal({
                                         <option value="CASO ABIERTO">CASO ABIERTO</option>
                                         <option value="CASO CERRADO">CASO CERRADO</option>
                                       </select>
+                                    ) : isEstatus ? (
+                                      <select
+                                        value={formData[key] || ''}
+                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                      >
+                                        <option value="">Seleccione estatus...</option>
+                                        {statuses.map(s => (
+                                          <option key={s} value={s}>{s}</option>
+                                        ))}
+                                      </select>
                                     ) : isGarantia ? (
                                       <select
                                         value={(formData[key] || '').toUpperCase()}
                                         onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
                                         className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                                       >
+                                        <option value="POR DEFINIR">POR DEFINIR</option>
                                         <option value="SI">SI</option>
                                         <option value="NO">NO</option>
                                       </select>
                                     ) : (
-                                      <input
-                                        type="text"
-                                        value={isDate ? (formData[key]?.split('T')[0] || '') : (formData[key] || '')}
-                                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                                        className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                      />
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="text"
+                                          value={isDate ? (formData[key]?.split('T')[0] || '') : (formData[key] || '')}
+                                          onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                                          disabled={isNid || isBlockedField}
+                                          className={cn(
+                                            "flex-1 bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all",
+                                            (isNid || isBlockedField) && "opacity-50 cursor-not-allowed bg-slate-100"
+                                          )}
+                                        />
+                                        {isNew && (selectedTable === 'vatc' || selectedTable === 'platco' || selectedTable === 'platco_pos') && key.toLowerCase() === 'serial' && (
+                                          <button
+                                            onClick={handleExternalLookup}
+                                            disabled={loading}
+                                            className="bg-primary text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
+                                          >
+                                            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Settings className="w-3 h-3" />}
+                                            Buscar en BD
+                                          </button>
+                                        )}
+                                      </div>
                                     )}
                                   </td>
                                 </tr>
@@ -565,49 +773,7 @@ export function TerminalDetailsModal({
 
                   {/* Sidebar Column */}
                   <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-3xl border border-outline-variant shadow-sm">
-                      <h4 className="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Estatus Técnico</h4>
-                      <div className="space-y-3">
-                        {['EN REVISION', 'REPARADO', 'SIN SOLUCION', 'ENTREGADO'].map(status => (
-                          <button
-                            key={status}
-                            disabled={!isEditing}
-                            onClick={() => setFormData({ ...formData, estatus: status })}
-                            className={cn(
-                              "w-full px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-left flex items-center justify-between",
-                              formData.estatus === status
-                                ? "bg-primary text-white shadow-lg shadow-primary/20"
-                                : "bg-slate-50 text-outline hover:bg-slate-100 disabled:opacity-50"
-                            )}
-                          >
-                            {status}
-                            {formData.estatus === status && <CheckCircle2 className="w-4 h-4" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
-                    <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10">
-                      <div className="flex items-center gap-3 mb-4">
-                        <AlertCircle className="w-4 h-4 text-primary" />
-                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Información de Sistema</h4>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black text-outline uppercase">Origen:</span>
-                          <span className="text-[10px] font-black text-primary uppercase">{isNew ? selectedTable : targetTableName}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black text-outline uppercase">Modificado CRM:</span>
-                          <span className={cn(
-                            "text-[10px] font-black px-2 py-0.5 rounded-full uppercase",
-                            formData.modificado_crm ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"
-                          )}>
-                            {formData.modificado_crm ? 'SÍ' : 'NO'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -803,8 +969,8 @@ export function TerminalDetailsModal({
               {isEditing ? (
                 <button
                   onClick={async () => {
-                    await handleSave();
-                    setIsEditing(false);
+                    const success = await handleSave();
+                    if (success) setIsEditing(false);
                   }}
                   disabled={saving}
                   className="bg-primary text-white px-10 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"

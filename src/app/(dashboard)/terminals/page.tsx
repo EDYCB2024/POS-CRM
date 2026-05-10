@@ -22,11 +22,13 @@ import {
   Search,
   ShieldCheck,
   ShieldX,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
 import { TerminalDetailsModal } from "@/components/modals/TerminalDetailsModal";
+import { BulkAddModal } from "@/components/modals/BulkAddModal";
 
 
 const stats = [
@@ -65,6 +67,7 @@ export default function TerminalsPage() {
   const [selectedSerial, setSelectedSerial] = useState('');
   const [selectedSlug, setSelectedSlug] = useState('');
   const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
 
   const fetchRealData = async (force: boolean = false) => {
@@ -269,7 +272,15 @@ export default function TerminalsPage() {
             <h1 className="mb-xs">Gestión de Terminales</h1>
             <p className="text-body-md text-on-surface-variant">Monitoreo y exportación global de terminales POS.</p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex items-center gap-sm bg-secondary text-white px-lg py-md rounded-xl font-semibold shadow-lg shadow-secondary/20 hover:opacity-90 active:scale-95 transition-all min-w-[180px] justify-center"
+            >
+              <Database className="w-5 h-5" />
+              Añadir Masivo
+            </button>
+            <div className="flex flex-col gap-2">
             <button
               onClick={handleExportGlobal}
               disabled={exporting}
@@ -286,6 +297,7 @@ export default function TerminalsPage() {
                 />
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -435,6 +447,12 @@ export default function TerminalsPage() {
         isNew={!selectedSerial}
         onSuccess={() => fetchRealData(true)}
         initialData={selectedRow}
+      />
+
+      <BulkAddModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        onSuccess={() => fetchRealData(true)}
       />
     </>
   );

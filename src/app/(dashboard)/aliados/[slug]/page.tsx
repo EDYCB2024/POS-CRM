@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 
 import { supabase } from '@/lib/supabase'
@@ -25,7 +26,10 @@ import {
   FilterX,
   RefreshCw,
   Copy,
-  Check
+  Check,
+  Trash2,
+  X,
+  MoreHorizontal
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
@@ -51,6 +55,10 @@ export default function AllyPage() {
   const [selectedRow, setSelectedRow] = useState<any>(null)
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const pageSize = 20
 
 
@@ -104,8 +112,13 @@ export default function AllyPage() {
       if (filterEstatusCaso) query = query.ilike('estatus_del_caso', `%${filterEstatusCaso}%`)
       if (filterGarantia) query = query.ilike('garantia', `%${filterGarantia}%`)
 
+      const nidCol = (currentSlug === 'platco' || currentSlug === 'platco-pos') ? 'nro' : 'n';
+
+      // Filtrar registros vacíos para evitar que aparezcan filas en blanco al principio
+      query = query.not(nidCol, 'is', null).not('serial', 'eq', '');
+
       const { data: tableData, error: dbError, count } = await query
-        .order('fecha', { ascending: false })
+        .order(nidCol, { ascending: false })
         .range(from, to)
 
       if (dbError) throw dbError
@@ -194,11 +207,12 @@ export default function AllyPage() {
       let hasMore = true
 
       while (hasMore) {
+        const nidCol = ['platco', 'platco_pos'].includes(currentSlug) ? 'nro' : 'n';
         let query = supabase
           .from(tableName)
           .select('*')
           .range(from, from + limit - 1)
-          .order('fecha', { ascending: false })
+          .order(nidCol, { ascending: false })
 
         if (searchTerm) {
           const possibleLoteCols = ['lote', 'categoria', 'categora', 'categoria/lote']
@@ -266,6 +280,38 @@ export default function AllyPage() {
     } finally {
       setExporting(false)
       setTimeout(() => setExportProgress(0), 1000)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!slug) return
+    try {
+      setIsDeleting(true)
+      const currentSlug = slug.toString()
+      const tableMapping: Record<string, string> = {
+        'del-sur': 'delsur',
+        'pos-comercial': 'poscom',
+        'token-pagos': 'tokenp',
+        'banco-activo': 'bactivo',
+        'credicard': 'ccr'
+      }
+      const tableName = tableMapping[currentSlug] || currentSlug.replace(/-/g, '_')
+
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      
+      setData(prev => prev.filter(item => item.id.toString() !== id.toString()))
+      setTotalCount(prev => prev - 1)
+      setDeleteConfirmId(null)
+    } catch (err: any) {
+      console.error('Error deleting:', err)
+      alert("Error al eliminar: " + err.message)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -580,12 +626,12 @@ export default function AllyPage() {
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-outline-variant">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="bg-blue-50 border-b border-outline-variant">
+                  <tr className="bg-primary border-b border-primary/20">
                     {headers.map(header => {
                       const isNumber = header.toLowerCase() === 'n' || header.toLowerCase() === 'nro'
                       return (
                         <th key={header} className={cn(
-                          "px-3 py-2 text-[10px] text-on-surface-variant uppercase tracking-wider font-extrabold border-r border-outline-variant/30 last:border-r-0",
+                          "px-3 py-2 text-[10px] text-white uppercase tracking-wider font-black border-r border-white/10 last:border-r-0",
                           isNumber ? "w-[60px]" : "w-[150px]"
                         )}>
                           <div className="flex items-center justify-between">
@@ -595,7 +641,10 @@ export default function AllyPage() {
                         </th>
                       )
                     })}
-                    <th className="px-3 py-2 text-[10px] text-on-surface-variant text-right uppercase tracking-wider font-extrabold w-[80px]">Acciones</th>
+                    <th className="px-3 py-2 text-[10px] text-white text-center font-black w-[100px] sticky right-0 bg-primary z-10 border-l border-white/10 uppercase tracking-wider relative">
+                      <div className="absolute top-0 bottom-0 -left-[12px] w-[12px] bg-gradient-to-r from-transparent to-black/[0.08] pointer-events-none" />
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
@@ -607,16 +656,29 @@ export default function AllyPage() {
                         setSelectedRow(row)
                         setIsModalOpen(true)
                       }}
-                      className="transition-colors group cursor-pointer hover:bg-primary/5"
+                      className="group even:bg-slate-100 transition-colors cursor-pointer hover:bg-slate-200/50 relative"
                     >
                       {headers.map(header => (
                         <td key={header} className="px-3 py-1.5 border-r border-outline-variant/10 last:border-r-0">
                           {renderCellContent(header, row[header], row)}
                         </td>
                       ))}
-                      <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button className="p-1 hover:bg-surface-container rounded-md text-on-surface-variant transition-colors">
-                          <MoreVertical className="w-3.5 h-3.5" />
+                      <td className="px-3 py-1.5 text-center sticky right-0 bg-white group-even:bg-slate-100 group-hover:bg-[#e2e8f0] transition-colors border-l border-[#cbd5e1]/50 z-10 relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute top-0 bottom-0 -left-[12px] w-[12px] bg-gradient-to-r from-transparent to-black/[0.06] pointer-events-none" />
+                        <button 
+                          onClick={(e) => {
+                            if (openMenuId === row.id) {
+                              setOpenMenuId(null);
+                              setMenuPosition(null);
+                            } else {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setOpenMenuId(row.id);
+                              setMenuPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX - 140 });
+                            }
+                          }}
+                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-all active:scale-95"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
@@ -650,8 +712,84 @@ export default function AllyPage() {
         }}
         serial={selectedSerial}
         currentSlug={slug?.toString() || ''}
+        onSuccess={() => fetchData()}
         initialData={selectedRow}
       />
+
+      {/* Delete Confirmation Modal - Simplified to prevent layout issues */}
+      {typeof document !== 'undefined' && deleteConfirmId && createPortal(
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => !isDeleting && setDeleteConfirmId(null)}
+          />
+          <div className="relative bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-200 w-[380px] min-h-[240px] overflow-hidden flex flex-col">
+            <div className="p-8 text-center flex-1">
+              <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">¿Confirmar eliminación?</h3>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                Esta acción es permanente y no se podrá recuperar el expediente una vez borrado.
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100 bg-slate-50">
+              <button
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-white transition-all border-r border-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={() => handleDelete(deleteConfirmId)}
+                className="flex-1 px-6 py-4 text-[10px] font-black text-red-600 uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3 h-3" />
+                )}
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Portal for Actions Menu */}
+      {typeof document !== 'undefined' && openMenuId && menuPosition && createPortal(
+        <>
+          <div 
+            className="fixed inset-0 z-[1000]" 
+            onClick={() => { setOpenMenuId(null); setMenuPosition(null); }} 
+          />
+          <div 
+            style={{ 
+              position: 'absolute', 
+              top: menuPosition.top + 2, 
+              left: menuPosition.left,
+              width: '140px'
+            }}
+            className="z-[1001] bg-white rounded-lg shadow-lg border border-outline-variant/50 overflow-hidden animate-in fade-in zoom-in duration-100 origin-top-right"
+          >
+            <button
+              onClick={() => {
+                setDeleteConfirmId(openMenuId)
+                setOpenMenuId(null)
+                setMenuPosition(null)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              ELIMINAR
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
     </main>
   )
 }
