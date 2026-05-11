@@ -1,16 +1,22 @@
 'use client'
 
 import { Bell, LogOut } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 interface TopBarProps {
   title: string
 }
 
 export function TopBar({ title }: TopBarProps) {
-  const handleLogout = () => {
-    // Eliminar cookie de sesión (mock)
-    document.cookie = "auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-    window.location.href = '/login'
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Fallback redirect
+      window.location.href = '/login'
+    }
   }
 
   return (
