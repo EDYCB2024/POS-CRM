@@ -426,7 +426,8 @@ export default function TerminalsPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
+    </section>
 
       <TerminalDetailsModal
         isOpen={isModalOpen}
