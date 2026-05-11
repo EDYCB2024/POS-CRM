@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# POS-CRM: Sistema de Gestión de Terminales y CRM Financiero
 
-## Getting Started
+## 1. Información General
+**Nombre del Proyecto:** POS-CRM
+**Descripción:** POS-CRM es una plataforma centralizada diseñada para optimizar la gestión, seguimiento y soporte técnico de terminales de puntos de venta (POS). La solución resuelve la fragmentación de datos entre diferentes aliados financieros, proporcionando un centro de control unificado para el monitoreo de estatus, gestión de inventario, registro de fallas y análisis de ventas en tiempo real.
 
-First, run the development server:
+## 2. Stack Tecnológico
+El proyecto utiliza un stack moderno y escalable orientado a la alta disponibilidad y rendimiento:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Frontend:** [Next.js](https://nextjs.org/) (React) con el sistema de enrutamiento App Router.
+- **Estilos:** [Tailwind CSS](https://tailwindcss.com/) para un diseño responsivo, moderno y con soporte nativo para temas oscuros/claros y optimización de impresión.
+- **Backend & Base de Datos:** [Supabase](https://supabase.com/) como plataforma Backend-as-a-Service, proporcionando PostgreSQL, autenticación y almacenamiento.
+- **Librerías Clave:**
+  - `lucide-react`: Para iconografía consistente.
+  - `html2pdf.js` & `window.print()`: Para la generación fiel de informes en PDF.
+  - `xlsx`: Para la exportación y manejo de datos en formatos de hoja de cálculo.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 3. Arquitectura y Datos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Estructura de Carpetas
+La arquitectura sigue las convenciones de Next.js para una separación clara de responsabilidades:
+- `/src/app`: Definición de rutas, layouts y lógica de páginas (Dashboard, Aliados, Inventario).
+- `/src/components`: Componentes de UI reutilizables y modales de gestión.
+- `/src/lib`: Configuraciones de clientes (Supabase) y utilidades generales.
+- `/supabase`: Scripts de migración y definición del esquema de base de datos.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Modelo de Datos
+La base de datos en Supabase está estructurada para soportar múltiples entidades:
+- **Terminals:** Registro maestro de equipos, seriales y versiones de firmware.
+- **Sales:** Historial de transacciones para análisis financiero.
+- **Activity Logs:** Auditoría completa de acciones realizadas en el sistema.
+- **Tablas de Aliados:** Estructuras específicas para procesadoras como VATC, Banplus, Credicard, entre otros.
 
-## Learn More
+### Gestión Automatizada (Servidor MCP)
+Se integra un servidor **MCP (Model Context Protocol)** para la gestión automatizada de tablas y esquemas. Esto permite una sincronización dinámica del modelo de datos sin intervenciones manuales constantes, facilitando la escalabilidad del sistema ante nuevos requerimientos de los aliados.
 
-To learn more about Next.js, take a look at the following resources:
+### Seguridad (RLS)
+La seguridad está garantizada a nivel de base de datos mediante **Row Level Security (RLS)** de PostgreSQL. Las políticas aseguran que:
+- Solo usuarios autenticados puedan acceder a los datos sensibles.
+- El acceso a la información de aliados específicos esté restringido según el rol del usuario.
+- Se mantenga la integridad de los registros de auditoría (logs) sin posibilidad de alteración externa.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 4. Funcionalidades Clave
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Dashboard de Control:** Visualización en tiempo real de métricas críticas, estatus de terminales y resúmenes de ventas.
+- **Gestión de Aliados:** Módulos específicos para la administración de terminales segmentados por procesadora financiera.
+- **Control de Inventario:** Seguimiento detallado de equipos, piezas y consumibles.
+- **Exportación Fiel a PDF:** Sistema de generación de informes técnicos que utiliza directivas `@media print` y Puppeteer (vía backend o browser) para asegurar que el documento PDF sea una réplica exacta de la interfaz web, manteniendo la identidad visual y estructura profesional.
 
-## Deploy on Vercel
+## 5. Configuración de Desarrollo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Requisitos Previos
+- Node.js (versión recomendada LTS)
+- NPM o PNPM
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Instalación Local
+1. Clonar el repositorio.
+2. Ejecutar la instalación de dependencias:
+   ```bash
+   npm install
+   ```
+3. Configurar las variables de entorno en un archivo `.env.local`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
+   ```
+
+### Seguridad y Acceso
+> [!IMPORTANT]
+> Nunca compartas el **Personal Access Token (PAT)** ni las claves de servicio de Supabase en el repositorio. Asegúrate de que el archivo `.env.local` esté incluido en tu `.gitignore`.
+
+## 6. Sincronización y Despliegue
+
+### Flujo de Git y Vercel
+El proyecto está integrado con **Vercel** para despliegues continuos (CI/CD). Cada "push" a la rama principal dispara automáticamente una nueva versión de producción, validando previamente el proceso de compilación de Next.js.
+
+### Conexión Directa a DB
+La sincronización entre el entorno local y producción se realiza a través del cliente de Supabase, asegurando que tanto los datos como los cambios en el esquema (vía MCP o migraciones) se reflejen de manera consistente en todas las instancias de la aplicación.

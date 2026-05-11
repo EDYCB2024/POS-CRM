@@ -4,24 +4,37 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Store, Eye, EyeOff, Lock, Mail, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Iniciando sesión para:', email)
     setIsLoading(true)
+    setError(null)
     
-    // Simular proceso de autenticación
-    setTimeout(() => {
-      // Establecer cookie de sesión (mock)
-      document.cookie = "auth_session=true; path=/; max-age=86400" // 24 horas
-      
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) throw signInError
+      console.log('Sesión iniciada con éxito:', data)
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Excepción en Login:', err)
+      setError(err instanceof Error ? err.message : 'Error al iniciar sesión')
+    } finally {
       setIsLoading(false)
-      router.push('/')
-    }, 1500)
+    }
   }
 
   return (
@@ -49,12 +62,21 @@ export default function LoginPage() {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
                 <input
                   id="email"
-                  type="text"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="usuario@empresa.com"
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-primary placeholder:text-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all outline-none"
                 />
               </div>
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest p-4 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                {error === 'Invalid login credentials' ? 'Credenciales Inválidas' : error}
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
@@ -70,6 +92,9 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full pl-12 pr-12 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-primary placeholder:text-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all outline-none"
                 />

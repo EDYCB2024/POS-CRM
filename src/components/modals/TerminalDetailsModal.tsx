@@ -495,7 +495,7 @@ export function TerminalDetailsModal({
       />
 
       <div className={cn(
-        "bg-surface w-full max-w-5xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-hidden relative flex flex-col transition-all duration-500",
+        "bg-surface w-full max-w-3xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-hidden relative flex flex-col transition-all duration-500",
         isOpen ? "translate-y-0 scale-100" : "translate-y-12 scale-95"
       )}>
         {/* Header */}
@@ -588,10 +588,10 @@ export function TerminalDetailsModal({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Main Data Column */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-3xl border border-outline-variant overflow-hidden shadow-sm">
+                <div className="p-0 flex justify-center">
+                  {/* Main Data Container - Seamless Integration */}
+                  <div className="w-full space-y-0">
+                    <div className="overflow-hidden">
                       <table className="w-full text-left">
                         <thead>
                           <tr className="bg-primary border-b border-primary/20">
@@ -662,8 +662,8 @@ export function TerminalDetailsModal({
                               const isEstatusCaso = key.toLowerCase() === 'estatus_del_caso';
 
                               return (
-                                <tr key={key} className="group even:bg-slate-100/50 transition-colors hover:bg-slate-200/30">
-                                  <td className="px-6 py-3 text-[10px] font-black text-white bg-primary uppercase tracking-widest border-r border-white/10 w-[180px]">
+                                <tr key={key} className="group even:bg-slate-50/50 transition-colors hover:bg-primary/5">
+                                  <td className="px-6 py-3 text-[9px] font-black text-on-surface-variant/70 bg-slate-100/50 uppercase tracking-[0.15em] border-r border-outline-variant/30 w-[160px]">
                                     {label}
                                   </td>
                                   <td className="px-8 py-3">
@@ -770,13 +770,9 @@ export function TerminalDetailsModal({
                       </table>
                     </div>
                   </div>
-
-                  {/* Sidebar Column */}
-                  <div className="space-y-6">
-
-                  </div>
                 </div>
-              )}
+              )
+            }
             </div>
           ) : activeTab === 'history' ? (
             <div className="p-8">

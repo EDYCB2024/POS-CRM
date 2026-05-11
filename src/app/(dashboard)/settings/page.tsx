@@ -20,7 +20,11 @@ import {
   Users as UsersIcon,
   UserPlus,
   UserCog,
-  Mail
+  Mail,
+  Trash2,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -46,6 +50,31 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userFormData, setUserFormData] = useState({ 
+    full_name: '', 
+    email: '', 
+    role: 'editor', 
+    status: 'active' 
+  });
+  
+  // Profile Management State
+  const [profileData, setProfileData] = useState({
+    nombre: '',
+    apellido: '',
+    alias: '',
+    correo: ''
+  });
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  
+  // Security State
+  const [securityData, setSecurityData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
 
   const fetchLogs = async (force: boolean = false) => {
     setLoading(true);
@@ -111,6 +140,156 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAddUser = async () => {
+    if (!userFormData.email) return;
+    
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: userFormData.email,
+          full_name: userFormData.full_name,
+          role: userFormData.role
+        }
+      });
+
+      if (error) throw error;
+      
+      alert('Invitación enviada con éxito');
+      setIsAddingUser(false);
+      setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
+      fetchUsers(true);
+    } catch (err) {
+      console.error('Error inviting user:', err);
+      alert('Error al enviar invitación: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleUpdateUser = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(userFormData)
+        .eq('id', id);
+      
+      if (error) throw error;
+      setEditingUserId(null);
+      setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
+      fetchUsers(true);
+    } catch (err) {
+      console.error('Error updating user:', err);
+      alert('Error al actualizar usuario');
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm('¿Está seguro de eliminar este usuario?')) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      fetchUsers(true);
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      alert('Error al eliminar usuario');
+    }
+  };
+
+  const fetchProfile = async () => {
+    setLoadingProfile(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      if (data) {
+        setProfileData({
+          nombre: data.nombre || data.full_name?.split(' ')[0] || '',
+          apellido: data.apellido || data.full_name?.split(' ').slice(1).join(' ') || '',
+          alias: data.alias || '',
+          correo: data.email || user.email || ''
+        });
+      } else {
+        setProfileData(prev => ({ ...prev, correo: user.email || '' }));
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          nombre: profileData.nombre,
+          apellido: profileData.apellido,
+          alias: profileData.alias,
+          full_name: `${profileData.nombre} ${profileData.apellido}`.trim(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      alert('Perfil actualizado con éxito');
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      alert('Error al actualizar el perfil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!securityData.newPassword || !securityData.confirmPassword) {
+      alert('Por favor, complete ambos campos');
+      return;
+    }
+    if (securityData.newPassword !== securityData.confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+    if (securityData.newPassword.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: securityData.newPassword
+      });
+      
+      if (error) throw error;
+      
+      alert('Contraseña actualizada con éxito');
+      setSecurityData({ newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error('Error updating password:', err);
+      alert('Error al actualizar la contraseña');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'activity') {
       fetchLogs();
@@ -118,6 +297,8 @@ export default function SettingsPage() {
       fetchAllies();
     } else if (activeTab === 'users') {
       fetchUsers();
+    } else if (activeTab === 'profile') {
+      fetchProfile();
     }
   }, [activeTab]);
 
@@ -409,6 +590,17 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
+                      onClick={() => {
+                        setIsAddingUser(true);
+                        setEditingUserId(null);
+                        setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:opacity-90 transition-all"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      Añadir Usuario
+                    </button>
+                    <button 
                       onClick={() => fetchUsers(true)}
                       className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-outline-variant"
                     >
@@ -418,6 +610,77 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-6 overflow-y-auto max-h-[600px]">
+                  {(isAddingUser || editingUserId) && (
+                    <div className="mb-6 p-6 bg-primary/5 rounded-3xl border border-primary/10 animate-in fade-in zoom-in-95 duration-200">
+                      <h3 className="text-sm font-black uppercase text-primary mb-4">
+                        {editingUserId ? 'Editar Usuario' : 'Nuevo Usuario'}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="text-[10px] font-bold text-outline uppercase mb-1 block">Nombre Completo</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-4 py-2 rounded-lg border border-outline-variant focus:border-primary outline-none text-sm font-bold"
+                            placeholder="Ej: Juan Pérez"
+                            value={userFormData.full_name}
+                            onChange={(e) => setUserFormData({...userFormData, full_name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-outline uppercase mb-1 block">Correo Electrónico</label>
+                          <input 
+                            type="email" 
+                            className="w-full px-4 py-2 rounded-lg border border-outline-variant focus:border-primary outline-none text-sm font-bold"
+                            placeholder="juan@ejemplo.com"
+                            value={userFormData.email}
+                            onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                            disabled={!!editingUserId}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-outline uppercase mb-1 block">Rol</label>
+                          <select 
+                            className="w-full px-4 py-2 rounded-lg border border-outline-variant focus:border-primary outline-none text-sm font-bold bg-white"
+                            value={userFormData.role}
+                            onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}
+                          >
+                            <option value="admin">Administrador</option>
+                            <option value="editor">Editor</option>
+                            <option value="viewer">Lector</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-outline uppercase mb-1 block">Estatus</label>
+                          <select 
+                            className="w-full px-4 py-2 rounded-lg border border-outline-variant focus:border-primary outline-none text-sm font-bold bg-white"
+                            value={userFormData.status}
+                            onChange={(e) => setUserFormData({...userFormData, status: e.target.value})}
+                          >
+                            <option value="active">Activo</option>
+                            <option value="inactive">Inactivo</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => {
+                            setIsAddingUser(false);
+                            setEditingUserId(null);
+                          }}
+                          className="px-4 py-2 rounded-lg text-xs font-bold uppercase text-outline hover:bg-slate-100"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={() => editingUserId ? handleUpdateUser(editingUserId) : handleAddUser()}
+                          className="px-6 py-2 bg-primary text-white rounded-lg text-xs font-black uppercase tracking-widest"
+                        >
+                          {editingUserId ? 'Actualizar Usuario' : 'Guardar Usuario'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 gap-4">
                     {loadingUsers ? (
                       Array(3).fill(0).map((_: any, i: number) => (
@@ -465,9 +728,31 @@ export default function SettingsPage() {
                                 Miembro desde {new Date(user.created_at).toLocaleDateString()}
                               </p>
                             </div>
-                            <button className="p-2 hover:bg-slate-100 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                              <Edit2 className="w-4 h-4 text-outline" />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              <button 
+                                onClick={() => {
+                                  setEditingUserId(user.id);
+                                  setIsAddingUser(false);
+                                  setUserFormData({
+                                    full_name: user.full_name || '',
+                                    email: user.email,
+                                    role: user.role || 'editor',
+                                    status: user.status || 'active'
+                                  });
+                                }}
+                                className="p-2 hover:bg-slate-100 rounded-xl transition-all"
+                                title="Editar Usuario"
+                              >
+                                <Edit2 className="w-4 h-4 text-primary" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="p-2 hover:bg-red-50 rounded-xl transition-all"
+                                title="Eliminar Usuario"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-400" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -477,15 +762,166 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {(activeTab === 'profile' || activeTab === 'security') && (
-              <div className="p-20 text-center flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mb-2 border border-primary/10">
-                  <Shield className="w-8 h-8 text-primary" />
+            {activeTab === 'profile' && (
+              <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-primary" />
+                    <h2 className="font-black text-primary uppercase tracking-widest text-sm">Mi Perfil Personal</h2>
+                  </div>
                 </div>
-                <h3 className="text-lg font-black text-primary uppercase">Módulo en Desarrollo</h3>
-                <p className="text-sm text-on-surface-variant max-w-xs font-medium">
-                  Esta sección de configuración estará disponible en la próxima actualización del sistema.
-                </p>
+                
+                <div className="p-8 max-w-2xl">
+                  {loadingProfile ? (
+                    <div className="py-20 flex flex-col items-center justify-center gap-4">
+                      <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+                      <p className="text-xs font-black text-outline uppercase tracking-widest">Cargando perfil...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-6 mb-10">
+                        <div className="w-24 h-24 rounded-[32px] bg-primary/5 border-2 border-primary/10 flex items-center justify-center text-primary text-3xl font-black shadow-inner">
+                          {profileData.nombre?.charAt(0) || profileData.correo?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-on-surface uppercase tracking-tight">Configuración de Cuenta</h3>
+                          <p className="text-xs font-bold text-outline uppercase tracking-widest mt-1">Gestione su identidad en el CRM</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] ml-1">Nombre</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-5 py-3 rounded-2xl border border-outline-variant bg-surface-container-lowest focus:border-primary outline-none text-sm font-bold transition-all"
+                            value={profileData.nombre}
+                            onChange={(e) => setProfileData({...profileData, nombre: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] ml-1">Apellido</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-5 py-3 rounded-2xl border border-outline-variant bg-surface-container-lowest focus:border-primary outline-none text-sm font-bold transition-all"
+                            value={profileData.apellido}
+                            onChange={(e) => setProfileData({...profileData, apellido: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] ml-1">Alias / Nickname</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-5 py-3 rounded-2xl border border-outline-variant bg-surface-container-lowest focus:border-primary outline-none text-sm font-bold transition-all"
+                            value={profileData.alias}
+                            onChange={(e) => setProfileData({...profileData, alias: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] ml-1">Correo Electrónico</label>
+                          <input 
+                            type="email" 
+                            className="w-full px-5 py-3 rounded-2xl border border-outline-variant bg-slate-50 text-outline outline-none text-sm font-bold transition-all"
+                            value={profileData.correo}
+                            disabled
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-6">
+                        <button 
+                          onClick={handleUpdateProfile}
+                          disabled={savingProfile}
+                          className="w-full md:w-auto px-10 py-4 bg-primary text-white rounded-[20px] text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                        >
+                          {savingProfile ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {savingProfile ? 'Guardando...' : 'Actualizar Perfil'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <h2 className="font-black text-primary uppercase tracking-widest text-sm">Seguridad de la Cuenta</h2>
+                  </div>
+                </div>
+                
+                <div className="p-8 max-w-2xl">
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-6 mb-10">
+                      <div className="w-20 h-20 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-center">
+                        <Lock className="w-8 h-8 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-on-surface uppercase tracking-tight">Cambiar Contraseña</h3>
+                        <p className="text-xs font-bold text-outline uppercase tracking-widest mt-1">Asegure su acceso al sistema</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/50 border border-outline-variant p-6 rounded-3xl space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center ml-1">
+                          <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Nueva Contraseña</label>
+                          <button 
+                            onClick={() => setShowPasswords(!showPasswords)}
+                            className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                          >
+                            {showPasswords ? 'Ocultar' : 'Mostrar'}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
+                          <input 
+                            type={showPasswords ? "text" : "password"} 
+                            className="w-full pl-12 pr-5 py-3 rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none text-sm font-bold transition-all"
+                            placeholder="Mínimo 6 caracteres"
+                            value={securityData.newPassword}
+                            onChange={(e) => setSecurityData({...securityData, newPassword: e.target.value})}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] ml-1">Confirmar Nueva Contraseña</label>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
+                          <input 
+                            type={showPasswords ? "text" : "password"} 
+                            className="w-full pl-12 pr-5 py-3 rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none text-sm font-bold transition-all"
+                            placeholder="Repita su contraseña"
+                            value={securityData.confirmPassword}
+                            onChange={(e) => setSecurityData({...securityData, confirmPassword: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                      <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <p className="text-[10px] font-bold text-on-surface-variant leading-relaxed">
+                        Le recomendamos utilizar una contraseña fuerte que incluya letras, números y caracteres especiales. No comparta su contraseña con terceros.
+                      </p>
+                    </div>
+
+                    <div className="pt-4">
+                      <button 
+                        onClick={handleUpdatePassword}
+                        disabled={savingPassword}
+                        className="w-full md:w-auto px-10 py-4 bg-primary text-white rounded-[20px] text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                      >
+                        {savingPassword ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {savingPassword ? 'Actualizando...' : 'Cambiar Contraseña'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -15,6 +15,8 @@ import {
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
+import { useBulkAdd } from "@/hooks/useBulkAdd"
+
 interface BulkAddModalProps {
   isOpen: boolean
   onClose: () => void
@@ -22,185 +24,27 @@ interface BulkAddModalProps {
 }
 
 export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) {
-  const [loading, setLoading] = useState(false)
-  const [fetchingAllies, setFetchingAllies] = useState(true)
-  const [allies, setAllies] = useState<any[]>([])
-  const [defaultAliados, setDefaultAliados] = useState<any[]>([])
-  const [statuses, setStatuses] = useState<string[]>([])
-  const [availableModels, setAvailableModels] = useState<{ linux: string[], android: string[] }>({ linux: [], android: [] })
-  const [selectedAlly, setSelectedAlly] = useState('')
-  const [serialsText, setSerialsText] = useState('')
-  const [model, setModel] = useState('N910')
-  const [status, setStatus] = useState('DISPONIBLE')
-  const [warranty, setWarranty] = useState('POR DEFINIR')
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchData = async () => {
-        try {
-          const { data: alliesData } = await supabase
-            .from('allies_config')
-            .select('*')
-            .eq('is_active', true)
-            .order('name', { ascending: true });
-
-          const { data: defaultsData } = await supabase
-            .from('default_aliados')
-            .select('*');
-
-          const { data: statusData } = await supabase
-            .from('estatus')
-            .select('estatus')
-            .order('estatus');
-
-          setAllies(alliesData || []);
-          setDefaultAliados(defaultsData || []);
-          if (statusData) setStatuses(statusData.map(s => s.estatus).filter(Boolean));
-
-          // Fetch models from central table
-          const { data: modData } = await supabase
-            .from('modelos')
-            .select('linux, android')
-            .order('id');
-          
-          if (modData) {
-            const linux = Array.from(new Set(modData.map(m => m.linux).filter(Boolean)));
-            const android = Array.from(new Set(modData.map(m => m.android).filter(Boolean)));
-            setAvailableModels({ linux, android });
-          }
-        } catch (err) {
-          console.error('Error fetching data:', err);
-          setError('No se pudieron cargar los datos necesarios');
-        } finally {
-          setFetchingAllies(false);
-        }
-      };
-      fetchData();
-    } else {
-      // Reset state when closing
-      setSerialsText('');
-      setError(null);
-      setSuccess(null);
-    }
-  }, [isOpen]);
-
-  const handleProcess = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    const serialList = serialsText
-      .split('\n')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    if (!selectedAlly) {
-      setError('Debes seleccionar un aliado');
-      return;
-    }
-
-    if (serialList.length === 0) {
-      setError('Debes ingresar al menos un serial');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const selectedAllyConfig = allies.find(a => a.name === selectedAlly);
-      const actualTableName = selectedAllyConfig?.table_name || selectedAlly;
-      
-      // Procesar cada serial para calcular el ingreso y buscar datos externos
-      const processedRows = await Promise.all(serialList.map(async (serial) => {
-        // 1. Calcular número de ingreso en la tabla del aliado
-        const { count } = await supabase
-          .from(actualTableName)
-          .select('*', { count: 'exact', head: true })
-          .eq('serial', serial);
-        
-        const nextIngreso = (count || 0) + 1;
-
-        // 2. Buscar datos externos si aplica
-        let externalData: any = {};
-        if (actualTableName === 'vatc') {
-          const { data } = await supabase
-            .from('bd_clientes')
-            .select('razon, cliente, procesadora')
-            .eq('serial', serial);
-          
-          if (data && data.length > 0) {
-            const latest = data[data.length - 1];
-            externalData = {
-              razon_social: latest.razon,
-              rif: latest.cliente,
-              procesadora: latest.procesadora,
-              factura: 'CARGA MASIVA'
-            };
-          }
-        } else if (actualTableName === 'platco' || actualTableName === 'platco_pos') {
-          const { data } = await supabase
-            .from('bd_platco')
-            .select('fecha_de_entrega')
-            .eq('seriales', serial);
-          
-          if (data && data.length > 0) {
-            externalData = {
-              fecha_venta: data[data.length - 1].fecha_de_entrega
-            };
-          }
-        }
-
-        return {
-          serial: serial,
-          modelo: model,
-          estatus: status,
-          garantia: warranty.toUpperCase(),
-          aliado: selectedAllyConfig?.name || selectedAlly,
-          ingreso: nextIngreso.toString(),
-          razon_social: externalData.razon_social || 'STOCK CRM',
-          rif: externalData.rif || 'PENDIENTE',
-          procesadora: externalData.procesadora || (actualTableName === 'vatc' ? 'PENDIENTE' : null),
-          factura: externalData.factura || null,
-          fecha_venta: externalData.fecha_venta || null,
-          fecha: new Date().toISOString().split('T')[0],
-          modificado_crm: true,
-          estatus_del_caso: 'CASO ABIERTO'
-        };
-      }));
-
-      const { error: insertError } = await supabase
-        .from(actualTableName)
-        .insert(processedRows);
-
-      if (insertError) throw insertError;
-
-      setSuccess(`Se han añadido ${serialList.length} equipos exitosamente a ${selectedAllyConfig?.name || selectedAlly}`);
-      setSerialsText('');
-      
-      // Log activity
-      await supabase.from('activity_logs').insert({
-        type: 'update',
-        message: `Carga masiva de ${serialList.length} equipos en ${selectedAllyConfig?.name || selectedAlly}`,
-        details: { ally: selectedAlly, count: serialList.length }
-      });
-
-      if (onSuccess) onSuccess();
-      
-      // Close modal after a short delay on success
-      setTimeout(() => {
-        onClose();
-      }, 2000);
-
-    } catch (err: any) {
-      console.error('Error in bulk add:', err);
-      setError(`Error: ${err.message || 'No se pudo completar la carga masiva'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const parsedCount = serialsText.split('\n').filter(s => s.trim().length > 0).length;
+  const {
+    loading,
+    fetchingData,
+    allies,
+    statuses,
+    availableModels,
+    selectedAlly,
+    setSelectedAlly,
+    serialsText,
+    setSerialsText,
+    model,
+    setModel,
+    status,
+    setStatus,
+    warranty,
+    setWarranty,
+    error,
+    success,
+    handleProcess,
+    parsedCount
+  } = useBulkAdd(isOpen, onClose, onSuccess);
 
   if (!isOpen) return null;
 
@@ -252,11 +96,11 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                     <select
                       value={selectedAlly}
                       onChange={(e) => setSelectedAlly(e.target.value)}
-                      disabled={fetchingAllies}
+                      disabled={fetchingData}
                       className="w-full pl-12 pr-4 py-4 bg-surface-container-lowest border border-outline-variant rounded-2xl text-sm font-bold text-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none appearance-none"
                     >
                       <option value="">Selecciona un aliado...</option>
-                      {allies.map(ally => (
+                      {allies.map((ally) => (
                         <option key={ally.id} value={ally.name}>
                           {ally.name}
                         </option>
@@ -297,12 +141,12 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                     >
                       <option value="">Seleccione modelo...</option>
                       <optgroup label="-- LINUX --">
-                        {availableModels.linux.map(m => (
+                        {availableModels.linux.map((m: string) => (
                           <option key={`bulk-linux-${m}`} value={m}>{m}</option>
                         ))}
                       </optgroup>
                       <optgroup label="-- ANDROID --">
-                        {availableModels.android.map(m => (
+                        {availableModels.android.map((m: string) => (
                           <option key={`bulk-android-${m}`} value={m}>{m}</option>
                         ))}
                       </optgroup>
@@ -336,7 +180,7 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                   >
                     <option value="">Seleccione estatus...</option>
                     {statuses.length > 0 ? (
-                      statuses.map(s => (
+                      statuses.map((s: string) => (
                         <option key={s} value={s}>{s}</option>
                       ))
                     ) : (
