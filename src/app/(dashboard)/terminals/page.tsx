@@ -28,7 +28,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
 import { TerminalDetailsModal } from "@/components/modals/TerminalDetailsModal";
-import { BulkAddModal } from "@/components/modals/BulkAddModal";
 
 
 const stats = [
@@ -67,7 +66,6 @@ export default function TerminalsPage() {
   const [selectedSerial, setSelectedSerial] = useState('');
   const [selectedSlug, setSelectedSlug] = useState('');
   const [selectedRow, setSelectedRow] = useState<any>(null);
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
 
   const fetchRealData = async (force: boolean = false) => {
@@ -267,36 +265,29 @@ export default function TerminalsPage() {
       <TopBar title="Gestión de Terminales" />
 
       <section className="p-margin">
-        <div className="mb-xl flex justify-between items-end">
+        <div className="mb-xl flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
-            <h1 className="mb-xs">Gestión de Terminales</h1>
+            <h1 className="mb-xs text-2xl md:text-3xl">Gestión de Terminales</h1>
             <p className="text-body-md text-on-surface-variant">Monitoreo y exportación global de terminales POS.</p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsBulkModalOpen(true)}
-              className="flex items-center gap-sm bg-secondary text-white px-lg py-md rounded-xl font-semibold shadow-lg shadow-secondary/20 hover:opacity-90 active:scale-95 transition-all min-w-[180px] justify-center"
-            >
-              <Database className="w-5 h-5" />
-              Añadir Masivo
-            </button>
-            <div className="flex flex-col gap-2">
-            <button
-              onClick={handleExportGlobal}
-              disabled={exporting}
-              className="flex items-center gap-sm bg-primary text-on-primary px-lg py-md rounded-xl font-semibold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 min-w-[200px] justify-center"
-            >
-              {exporting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-              {exporting ? `Exportando (${exportProgress}%)` : 'Exportar Global Excel'}
-            </button>
-            {exporting && (
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300 ease-out"
-                  style={{ width: `${exportProgress}%` }}
-                />
-              </div>
-            )}
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleExportGlobal}
+                disabled={exporting}
+                className="flex items-center gap-sm bg-primary text-on-primary px-lg py-md rounded-xl font-semibold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 w-full sm:min-w-[200px] justify-center"
+              >
+                {exporting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                {exporting ? `Exportando (${exportProgress}%)` : 'Exportar Global Excel'}
+              </button>
+              {exporting && (
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300 ease-out"
+                    style={{ width: `${exportProgress}%` }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -319,8 +310,8 @@ export default function TerminalsPage() {
 
         <div className="bg-white rounded-xl border border-outline-variant overflow-hidden">
           <div className="px-lg py-md border-b border-outline-variant bg-surface-container-low flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex flex-wrap gap-md items-center w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
+            <div className="flex flex-col sm:flex-row gap-md items-center w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
                 <input
                   type="text"
@@ -333,20 +324,21 @@ export default function TerminalsPage() {
               </div>
               <button
                 onClick={() => fetchRealData(true)}
-                className="px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]"
+                className="w-full sm:w-auto px-md py-sm bg-white border border-outline-variant rounded-lg text-label-md flex items-center gap-xs justify-center hover:bg-surface-container transition-colors font-bold uppercase tracking-wider text-[10px]"
               >
                 <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
                 {searchQuery ? 'Buscar' : 'Actualizar'}
               </button>
             </div>
-            <div className="flex items-center gap-sm">
-              <p className="text-label-sm text-on-surface-variant">
-                {isSearching ? `Resultados de búsqueda: ${recentTerminals.length}` : 'Mostrando los 10 más recientes'}
+            <div className="flex items-center gap-sm w-full md:w-auto justify-center md:justify-end">
+              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                {isSearching ? `Resultados: ${recentTerminals.length}` : 'Top 10 Recientes'}
               </p>
             </div>
           </div>
 
-          <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
                 <th className="px-lg py-md text-label-md text-on-surface-variant">Terminal ID / Serial</th>
@@ -447,12 +439,6 @@ export default function TerminalsPage() {
         isNew={!selectedSerial}
         onSuccess={() => fetchRealData(true)}
         initialData={selectedRow}
-      />
-
-      <BulkAddModal
-        isOpen={isBulkModalOpen}
-        onClose={() => setIsBulkModalOpen(false)}
-        onSuccess={() => fetchRealData(true)}
       />
     </>
   );

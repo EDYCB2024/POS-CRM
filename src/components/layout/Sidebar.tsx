@@ -94,13 +94,29 @@ export function Sidebar() {
     fetchAllies()
   }, [])
 
+  useEffect(() => {
+    // Cerrar sidebar al navegar en móviles
+    if (window.innerWidth < 1024 && isOpen) {
+      toggle()
+    }
+  }, [pathname])
+
   return (
-    <div
-      className={cn(
-        "fixed left-0 top-0 h-screen z-50 transition-all duration-300 ease-in-out flex",
-        isOpen ? "translate-x-0" : "-translate-x-80"
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={toggle}
+        />
       )}
-    >
+      
+      <div
+        className={cn(
+          "fixed left-0 top-0 h-screen z-50 transition-all duration-300 ease-in-out flex",
+          isOpen ? "translate-x-0" : "-translate-x-80"
+        )}
+      >
       {/* Sidebar Content Container */}
       <aside className="w-80 h-full bg-surface-container-lowest border-r border-outline-variant flex flex-col p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-outline-variant scrollbar-track-transparent relative shadow-2xl shadow-black/5">
         {/* Logo Section */}
@@ -358,7 +374,7 @@ export function Sidebar() {
       <button
         onClick={toggle}
         className={cn(
-          "w-6 h-20 bg-primary text-white rounded-r-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:w-8 transition-all duration-300 mt-[50vh] -translate-y-1/2",
+          "hidden lg:flex w-6 h-20 bg-primary text-white rounded-r-xl items-center justify-center shadow-lg shadow-primary/20 hover:w-8 transition-all duration-300 mt-[50vh] -translate-y-1/2",
           !isOpen && "bg-primary/90"
         )}
         title={isOpen ? "Hide Sidebar" : "Show Sidebar"}

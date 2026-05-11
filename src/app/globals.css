@@ -159,3 +159,12 @@ body {
     print-color-adjust: exact !important;
   }
 }
+/* Responsive Utilities */
+@layer utilities {
+  .p-margin {
+    @apply p-4 md:p-6 lg:p-10;
+  }
+  .mb-xl {
+    @apply mb-6 md:mb-10;
+  }
+}

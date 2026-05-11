@@ -1,13 +1,15 @@
 'use client'
 
-import { Bell, LogOut } from 'lucide-react'
+import { Bell, LogOut, Menu } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSidebar } from '@/context/SidebarContext'
 
 interface TopBarProps {
   title: string
 }
 
 export function TopBar({ title }: TopBarProps) {
+  const { toggle } = useSidebar()
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
@@ -22,7 +24,13 @@ export function TopBar({ title }: TopBarProps) {
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-outline-variant flex justify-between items-center w-full px-6 py-3">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-bold text-on-surface">{title}</h1>
+        <button 
+          onClick={toggle}
+          className="p-2 -ml-2 text-primary hover:bg-primary/5 rounded-lg lg:hidden"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        <h1 className="text-lg font-bold text-on-surface truncate">{title}</h1>
       </div>
 
       <div className="flex items-center gap-4">
