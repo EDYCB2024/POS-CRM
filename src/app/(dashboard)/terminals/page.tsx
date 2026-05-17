@@ -75,6 +75,16 @@ export default function TerminalsPage() {
   const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmTerminal, setDeleteConfirmTerminal] = useState<any | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const handleDelete = async (terminal: any) => {
     if (!terminal) return;
@@ -99,11 +109,11 @@ export default function TerminalsPage() {
         };
       });
       
-      alert('Equipo eliminado con éxito');
+      setToast({ message: 'Equipo eliminado con éxito', type: 'success' });
       setDeleteConfirmTerminal(null);
     } catch (err: any) {
       console.error('Error deleting terminal:', err);
-      alert('Error al eliminar el terminal: ' + (err.message || err));
+      setToast({ message: 'Error al eliminar el terminal: ' + (err.message || err), type: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -301,9 +311,9 @@ export default function TerminalsPage() {
         URL.revokeObjectURL(url);
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error exporting global data:', err);
-      alert('Error al exportar los datos. Por favor revise la consola.');
+      setToast({ message: 'Error al exportar los datos. Por favor revise la consola.', type: 'error' });
     } finally {
       setExporting(false);
       setTimeout(() => setExportProgress(0), 1000);
@@ -563,6 +573,44 @@ export default function TerminalsPage() {
                 {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Eliminar'}
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {toast && createPortal(
+        <div className="fixed top-6 right-6 z-[99999] animate-in slide-in-from-right-10 fade-in duration-300">
+          <div className={cn(
+            "bg-white/95 backdrop-blur-md border shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex items-center gap-4 min-w-[320px] max-w-[400px]",
+            toast.type === 'success' ? "border-green-100" : "border-red-100"
+          )}>
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center border",
+              toast.type === 'success' ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+            )}>
+              {toast.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 text-green-600 animate-bounce" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600 animate-bounce" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h4 className={cn(
+                "text-[10px] font-black uppercase tracking-widest",
+                toast.type === 'success' ? "text-green-600" : "text-red-600"
+              )}>
+                {toast.type === 'success' ? 'Operación Exitosa' : 'Error en Operación'}
+              </h4>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">{toast.message}</p>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-lg cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>,
         document.body
