@@ -16,8 +16,10 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useNotification } from "@/context/NotificationContext";
 
 export default function RecepcionEquiposPage() {
+  const { showToast } = useNotification();
   const [serial, setSerial] = useState("");
   const [modelo, setModelo] = useState("");
   const [aliado, setAliado] = useState("");
@@ -36,7 +38,7 @@ export default function RecepcionEquiposPage() {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (!serial || !modelo || !aliado) {
-      alert("Por favor rellena el Serial, Modelo y Aliado.");
+      showToast("Por favor rellena el Serial, Modelo y Aliado.", "warning");
       return;
     }
 
@@ -55,7 +57,7 @@ export default function RecepcionEquiposPage() {
     setModelo("");
     setAliado("");
     setObservaciones("");
-    alert("¡Equipo recibido e ingresado al almacén con éxito!");
+    showToast("¡Equipo recibido e ingresado al almacén con éxito!", "success");
   };
 
   const filteredHistory = receivedToday.filter(

@@ -61,8 +61,11 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   console.log(`[Proxy] Path: ${pathname} | User: ${user ? user.email : 'None'}`)
 
-  // Proteger rutas: Si no hay usuario y no está en /login, redirigir a /login
-  if (!user && pathname !== '/login') {
+  // Public paths that do not require authentication
+  const isPublicPath = pathname === '/login' || pathname === '/auth/callback' || pathname === '/auth/setup-password'
+
+  // Proteger rutas: Si no hay usuario y la ruta no es pública, redirigir a /login
+  if (!user && !isPublicPath) {
     console.log('[Proxy] No user found, redirecting to /login')
     return NextResponse.redirect(new URL('/login', request.url))
   }

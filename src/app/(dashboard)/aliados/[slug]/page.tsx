@@ -35,8 +35,10 @@ import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
 import { ShieldCheck, ShieldX } from 'lucide-react'
 import { TerminalDetailsModal } from '@/components/modals/TerminalDetailsModal'
+import { useNotification } from '@/context/NotificationContext'
 
 export default function AllyPage() {
+  const { showToast, showAlert, showConfirm } = useNotification()
   const { slug } = useParams()
   const [data, setData] = useState<any[]>([])
   const [columns, setColumns] = useState<string[]>([])
@@ -58,7 +60,6 @@ export default function AllyPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const pageSize = 15
 
 
@@ -242,7 +243,7 @@ export default function AllyPage() {
       }
 
       if (allData.length === 0) {
-        alert("No hay datos para exportar con los filtros seleccionados.")
+        showToast("No hay datos para exportar con los filtros seleccionados.", "warning")
         return
       }
 
@@ -276,7 +277,7 @@ export default function AllyPage() {
 
     } catch (err: any) {
       console.error('Error exporting:', err)
-      alert("Error al exportar: " + err.message)
+      showAlert("Error al Exportar", "Ocurrió un error al generar el archivo Excel: " + err.message, "error")
     } finally {
       setExporting(false)
       setTimeout(() => setExportProgress(0), 1000)
@@ -306,10 +307,10 @@ export default function AllyPage() {
       
       setData(prev => prev.filter(item => item.id.toString() !== id.toString()))
       setTotalCount(prev => prev - 1)
-      setDeleteConfirmId(null)
+      showToast("Expediente eliminado con éxito", "success")
     } catch (err: any) {
       console.error('Error deleting:', err)
-      alert("Error al eliminar: " + err.message)
+      showAlert("Error al Eliminar", "No se pudo eliminar el registro de la base de datos: " + err.message, "error")
     } finally {
       setIsDeleting(false)
     }
@@ -716,49 +717,6 @@ export default function AllyPage() {
         initialData={selectedRow}
       />
 
-      {/* Delete Confirmation Modal - Simplified to prevent layout issues */}
-      {typeof document !== 'undefined' && deleteConfirmId && createPortal(
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => !isDeleting && setDeleteConfirmId(null)}
-          />
-          <div className="relative bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-200 w-[380px] min-h-[240px] overflow-hidden flex flex-col">
-            <div className="p-8 text-center flex-1">
-              <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">¿Confirmar eliminación?</h3>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                Esta acción es permanente y no se podrá recuperar el expediente una vez borrado.
-              </p>
-            </div>
-            <div className="flex border-t border-slate-100 bg-slate-50">
-              <button
-                disabled={isDeleting}
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-white transition-all border-r border-slate-100"
-              >
-                Cancelar
-              </button>
-              <button
-                disabled={isDeleting}
-                onClick={() => handleDelete(deleteConfirmId)}
-                className="flex-1 px-6 py-4 text-[10px] font-black text-red-600 uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3 h-3" />
-                )}
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* Portal for Actions Menu */}
       {typeof document !== 'undefined' && openMenuId && menuPosition && createPortal(
         <>
@@ -776,10 +734,18 @@ export default function AllyPage() {
             className="z-[1001] bg-white rounded-lg shadow-lg border border-outline-variant/50 overflow-hidden animate-in fade-in zoom-in duration-100 origin-top-right"
           >
             <button
-              onClick={() => {
-                setDeleteConfirmId(openMenuId)
-                setOpenMenuId(null)
-                setMenuPosition(null)
+              onClick={async () => {
+                const targetId = openMenuId;
+                setOpenMenuId(null);
+                setMenuPosition(null);
+                const confirmed = await showConfirm(
+                  '¿Eliminar Expediente?',
+                  'Esta acción es permanente y no se podrá recuperar el expediente una vez borrado de la base de datos.',
+                  'danger'
+                );
+                if (confirmed) {
+                  await handleDelete(targetId);
+                }
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-red-500 hover:bg-red-50 transition-colors"
             >

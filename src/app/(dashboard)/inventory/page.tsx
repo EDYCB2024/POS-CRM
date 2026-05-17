@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import { Boxes, TrendingUp, ArrowUpRight, Download, MoreVertical, Plus, X, Loader2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { supabase } from '@/lib/supabase'
+import { useNotification } from '@/context/NotificationContext'
 
 
 // Cache outside the component to persist inventory between remounts
 let cachedInventory: any[] | null = null;
 
 export default function InventoryPage() {
+  const { showToast, showAlert, showConfirm } = useNotification()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [data, setData] = useState<any[]>(cachedInventory || [])
@@ -69,7 +71,7 @@ export default function InventoryPage() {
 
   const handleSaveRepuesto = async () => {
     if (!formData.codigo) {
-      alert('El código es obligatorio')
+      showToast('El código es obligatorio', 'warning')
       return
     }
 
@@ -99,11 +101,12 @@ export default function InventoryPage() {
       if (error) throw error
 
       setFormData({ codigo: '', modelo: '', descripcion: '', stock: '' })
+      showToast(editingId ? 'Repuesto actualizado con éxito' : 'Repuesto creado con éxito', 'success')
       setEditingId(null)
       setIsModalOpen(false)
       fetchInventory()
     } catch (err: any) {
-      alert('Error al guardar: ' + err.message)
+      showAlert('Error al Guardar', 'No se pudo guardar el repuesto: ' + err.message, 'error')
     } finally {
       setSaving(false)
     }

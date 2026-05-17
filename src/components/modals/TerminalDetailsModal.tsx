@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
+import { useNotification } from "@/context/NotificationContext"
 
 interface TerminalDetailsModalProps {
   isOpen: boolean
@@ -63,6 +64,7 @@ export function TerminalDetailsModal({
   onSuccess,
   initialData
 }: TerminalDetailsModalProps) {
+  const { showToast, showAlert, showConfirm } = useNotification()
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'edit' | 'report'>('info')
@@ -252,7 +254,7 @@ export function TerminalDetailsModal({
     else if (type === 'razon') searchValue = formData?.razon_social || formData?.razn_social || '';
 
     if (!searchValue) {
-      alert(`Por favor ingrese un ${type} para buscar`);
+      showToast(`Por favor ingrese un ${type} para buscar`, 'warning');
       return;
     }
 
@@ -276,7 +278,7 @@ export function TerminalDetailsModal({
           if (data.length > 1) {
             // If multiple results, show a simple selection (MVP: use first one but alert)
             const selection = data[0];
-            const confirmFill = window.confirm(`Se encontraron ${data.length} coincidencias. ¿Desea cargar los datos de "${selection.razon}"?`);
+            const confirmFill = await showConfirm('Múltiples Coincidencias', `Se encontraron ${data.length} coincidencias. ¿Desea cargar los datos de "${selection.razon}"?`, 'primary');
             if (!confirmFill) return;
             
             setFormData((prev: any) => ({
@@ -297,10 +299,10 @@ export function TerminalDetailsModal({
               procesadora: latestRecord.procesadora || prev.procesadora,
               serial: latestRecord.serial || prev.serial
             }));
-            alert('Datos cargados correctamente.');
+            showToast('Datos cargados correctamente.', 'success');
           }
         } else {
-          alert('No se encontraron registros en la base de datos de clientes.');
+          showAlert('Sin Resultados', 'No se encontraron registros en la base de datos de clientes.', 'info');
         }
       } else if (actualTableName === 'platco' || actualTableName === 'platco_pos') {
         const { data } = await supabase
@@ -316,14 +318,14 @@ export function TerminalDetailsModal({
             razon_social: latestRecord.razon_social || prev.razon_social,
             rif: latestRecord.rif || prev.rif
           }));
-          alert('Datos de Platco cargados.');
+          showToast('Datos de Platco cargados.', 'success');
         } else {
-          alert('Serial no encontrado en Platco.');
+          showToast('Serial no encontrado en Platco.', 'warning');
         }
       }
     } catch (err) {
       console.error('Error in external lookup:', err);
-      alert('Error al consultar la base de datos');
+      showToast('Error al consultar la base de datos', 'error');
     } finally {
       setLoading(false);
     }
@@ -443,12 +445,12 @@ export function TerminalDetailsModal({
   if (!isOpen) return null
 
   const handleSave = async () => {
-    const confirmSave = window.confirm('¿Está seguro de que desea guardar los cambios en este expediente?')
+    const confirmSave = await showConfirm('Guardar Cambios', '¿Está seguro de que desea guardar los cambios en este expediente?', 'primary')
     if (!confirmSave) return false
 
     if (isNew && !selectedTable) {
-      alert('Por favor seleccione un aliado de destino')
-      return
+      showToast('Por favor seleccione un aliado de destino', 'warning')
+      return false
     }
 
     setSaving(true)
@@ -477,13 +479,13 @@ export function TerminalDetailsModal({
       const { error } = await query
       if (error) throw error
 
-      alert(isNew ? 'Registro creado exitosamente' : 'Cambios guardados correctamente')
+      showToast(isNew ? 'Registro creado exitosamente' : 'Cambios guardados correctamente', 'success')
       if (onSuccess) onSuccess()
       if (isNew) onClose()
       return true
     } catch (err) {
       console.error('Error saving changes:', err)
-      alert('Error al guardar los cambios')
+      showAlert('Error al Guardar', 'No se pudieron guardar los cambios en la base de datos. Por favor intente de nuevo.', 'error')
       return false
     } finally {
       setSaving(false)

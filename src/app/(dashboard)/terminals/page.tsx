@@ -76,6 +76,7 @@ export default function TerminalsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmTerminal, setDeleteConfirmTerminal] = useState<any | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (toast) {
@@ -109,8 +110,11 @@ export default function TerminalsPage() {
         };
       });
       
-      setToast({ message: 'Equipo eliminado con éxito', type: 'success' });
       setDeleteConfirmTerminal(null);
+      setSuccessModal({
+        isOpen: true,
+        message: `El equipo con serial ${terminal.serial || terminal.serial_de_remplazo} ha sido eliminado permanentemente de la base de datos con éxito.`
+      });
     } catch (err: any) {
       console.error('Error deleting terminal:', err);
       setToast({ message: 'Error al eliminar el terminal: ' + (err.message || err), type: 'error' });
@@ -610,6 +614,39 @@ export default function TerminalsPage() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {successModal && successModal.isOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            onClick={() => setSuccessModal(null)}
+            className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300"
+          />
+
+          {/* Modal Container */}
+          <div className="bg-surface rounded-[32px] border border-outline-variant shadow-2xl w-[440px] max-w-[95vw] overflow-hidden relative z-10 p-8 text-center flex flex-col items-center animate-in zoom-in duration-300 scale-100">
+            <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle className="w-8 h-8 text-emerald-600 animate-bounce" />
+            </div>
+
+            <h3 className="text-xl font-black text-on-surface mb-2 uppercase tracking-wide">
+              ¡Operación Exitosa!
+            </h3>
+
+            <p className="text-sm font-bold text-on-surface-variant mb-6 leading-relaxed">
+              {successModal.message}
+            </p>
+
+            <button
+              onClick={() => setSuccessModal(null)}
+              className="w-full py-3 bg-primary text-on-primary rounded-2xl font-bold text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20 cursor-pointer"
+            >
+              Entendido
             </button>
           </div>
         </div>,

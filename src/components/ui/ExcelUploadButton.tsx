@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx'
 import { CloudUpload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { useNotification } from '@/context/NotificationContext'
 
 interface ExcelUploadButtonProps {
   tableName: string
@@ -14,6 +15,7 @@ interface ExcelUploadButtonProps {
 }
 
 export function ExcelUploadButton({ tableName, onUploadComplete, label = "Importar Excel", className }: ExcelUploadButtonProps) {
+  const { showConfirm } = useNotification()
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [uploadStatus, setUploadStatus] = useState('')
@@ -96,7 +98,11 @@ export function ExcelUploadButton({ tableName, onUploadComplete, label = "Import
       console.log("Datos normalizados para subir:", normalizedData[0]);
 
       // Preguntar si desea REEMPLAZAR o ADICIONAR
-      const confirmReplace = window.confirm(`Se han detectado ${normalizedData.length} registros. ¿Desea REEMPLAZAR toda la base de datos actual? (Aceptar para Reemplazar / Cancelar para Adicionar)`)
+      const confirmReplace = await showConfirm(
+        'Método de Carga',
+        `Se han detectado ${normalizedData.length} registros. ¿Desea REEMPLAZAR toda la base de datos actual? (Aceptar para Reemplazar todo / Cancelar para Adicionar los registros al final)`,
+        'danger'
+      )
 
       if (confirmReplace) {
         setUploadStatus('Borrando datos antiguos...')

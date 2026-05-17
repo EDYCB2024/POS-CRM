@@ -29,11 +29,13 @@ import {
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { cn } from "@/lib/utils";
+import { useNotification } from '@/context/NotificationContext';
 
 // Removed module-level caches to ensure data freshness after updates
 
 
 export default function SettingsPage() {
+  const { showToast, showAlert, showConfirm } = useNotification();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies' | 'users'>('profile');
@@ -55,6 +57,7 @@ export default function SettingsPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [userFormData, setUserFormData] = useState({ 
     full_name: '', 
     email: '', 
@@ -146,17 +149,16 @@ export default function SettingsPage() {
 
   const handleAddUser = async () => {
     if (currentUserRole !== 'admin') {
-      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      showToast('Solo los administradores pueden gestionar usuarios.', 'error');
       return;
     }
     if (!userFormData.email) return;
     
     setLoadingUsers(true);
     try {
-      // Determine the redirect URL, fallback to production domain if running on localhost
-      const redirectToUrl = typeof window !== 'undefined' && !window.location.origin.includes('localhost') 
+      const redirectToUrl = typeof window !== 'undefined' 
         ? `${window.location.origin}/auth/callback` 
-        : 'https://pos-crm-rho.vercel.app/auth/callback';
+        : 'http://localhost:3000/auth/callback';
 
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
@@ -167,7 +169,21 @@ export default function SettingsPage() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        let errorMsg = error.message;
+        try {
+          // If the error has a response context, try to parse the error message from the response body
+          if (error && 'context' in error) {
+            const context = (error as any).context;
+            if (context && typeof context.text === 'function') {
+              const bodyText = await context.text();
+              const parsed = JSON.parse(bodyText);
+              if (parsed?.error) errorMsg = parsed.error;
+            }
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
       
       // Update profile with the selected role and set status to 'pending'
       const invitedUser = data?.data?.user;
@@ -185,13 +201,13 @@ export default function SettingsPage() {
         }
       }
       
-      alert('Invitación enviada con éxito y usuario registrado como Pendiente');
+      showAlert('Operación Exitosa', 'Invitación enviada con éxito.', 'success');
       setIsAddingUser(false);
       setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
       fetchUsers(true);
     } catch (err) {
       console.error('Error inviting user:', err);
-      alert('Error al enviar invitación: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      showAlert('Error al Enviar', 'Error al enviar invitación: ' + (err instanceof Error ? err.message : 'Error desconocido'), 'error');
     } finally {
       setLoadingUsers(false);
     }
@@ -199,7 +215,7 @@ export default function SettingsPage() {
 
   const handleUpdateUser = async (id: string) => {
     if (currentUserRole !== 'admin') {
-      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      showToast('Solo los administradores pueden gestionar usuarios.', 'error');
       return;
     }
     try {
@@ -211,19 +227,21 @@ export default function SettingsPage() {
       if (error) throw error;
       setEditingUserId(null);
       setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
+      showAlert('Operación Exitosa', 'Usuario actualizado con éxito.', 'success');
       fetchUsers(true);
     } catch (err) {
       console.error('Error updating user:', err);
-      alert('Error al actualizar usuario');
+      showToast('Error al actualizar usuario', 'error');
     }
   };
 
   const handleDeleteUser = async (id: string) => {
     if (currentUserRole !== 'admin') {
-      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      showToast('Solo los administradores pueden gestionar usuarios.', 'error');
       return;
     }
-    if (!window.confirm('¿Está seguro de eliminar este usuario?')) return;
+    const confirmed = await showConfirm('¿Eliminar Usuario?', '¿Está seguro de eliminar este usuario? Los cambios no se podrán deshacer.', 'danger');
+    if (!confirmed) return;
     try {
       const { error } = await supabase
         .from('profiles')
@@ -231,10 +249,58 @@ export default function SettingsPage() {
         .eq('id', id);
       
       if (error) throw error;
+      showAlert('Operación Exitosa', 'Usuario eliminado con éxito.', 'success');
       fetchUsers(true);
     } catch (err) {
       console.error('Error deleting user:', err);
-      alert('Error al eliminar usuario');
+      showToast('Error al eliminar usuario', 'error');
+    }
+  };
+
+  const handleResendInvite = async (user: any) => {
+    if (currentUserRole !== 'admin') {
+      showToast('Solo los administradores pueden gestionar usuarios.', 'error');
+      return;
+    }
+    
+    const confirmed = await showConfirm('Reenviar Invitación', `¿Está seguro de reenviar la invitación a ${user.email}?`, 'primary');
+    if (!confirmed) return;
+
+    try {
+      // Determine target redirect url
+      const redirectToUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/auth/callback` 
+        : 'http://localhost:3000/auth/callback';
+
+      const { error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: user.email,
+          full_name: user.full_name || '',
+          role: user.role || 'editor',
+          redirectTo: redirectToUrl
+        }
+      });
+
+      if (error) {
+        let errorMsg = error.message;
+        try {
+          if (error && 'context' in error) {
+            const context = (error as any).context;
+            if (context && typeof context.text === 'function') {
+              const bodyText = await context.text();
+              const parsed = JSON.parse(bodyText);
+              if (parsed?.error) errorMsg = parsed.error;
+            }
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+
+      showAlert('Operación Exitosa', 'Enlace de invitación reenviado con éxito.', 'success');
+      fetchUsers(true);
+    } catch (err) {
+      console.error('Error resending invite:', err);
+      showAlert('Error al Reenviar', 'Error al reenviar la invitación: ' + (err instanceof Error ? err.message : 'Error desconocido'), 'error');
     }
   };
 
@@ -287,10 +353,10 @@ export default function SettingsPage() {
         });
       
       if (error) throw error;
-      alert('Perfil actualizado con éxito');
+      showToast('Perfil actualizado con éxito', 'success');
     } catch (err) {
       console.error('Error updating profile:', err);
-      alert('Error al actualizar el perfil');
+      showToast('Error al actualizar el perfil', 'error');
     } finally {
       setSavingProfile(false);
     }
@@ -298,15 +364,15 @@ export default function SettingsPage() {
 
   const handleUpdatePassword = async () => {
     if (!securityData.newPassword || !securityData.confirmPassword) {
-      alert('Por favor, complete ambos campos');
+      showToast('Por favor, complete ambos campos', 'warning');
       return;
     }
     if (securityData.newPassword !== securityData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      showToast('Las contraseñas no coinciden', 'warning');
       return;
     }
     if (securityData.newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
+      showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
       return;
     }
 
@@ -318,11 +384,11 @@ export default function SettingsPage() {
       
       if (error) throw error;
       
-      alert('Contraseña actualizada con éxito');
+      showToast('Contraseña actualizada con éxito', 'success');
       setSecurityData({ newPassword: '', confirmPassword: '' });
     } catch (err) {
       console.error('Error updating password:', err);
-      alert('Error al actualizar la contraseña');
+      showToast('Error al actualizar la contraseña', 'error');
     } finally {
       setSavingPassword(false);
     }
@@ -334,6 +400,8 @@ export default function SettingsPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        
+        setCurrentUserEmail(user.email || '');
 
         // Secure bypass for super admins to ensure they always have all options
         if (user.email === 'edcastilloblanco@gmail.com' || user.email === 'edycb2025@gmail.com') {
@@ -384,7 +452,7 @@ export default function SettingsPage() {
 
   const handleUpdateAllyName = async (id: string) => {
     if (currentUserRole !== 'admin') {
-      alert('Operación no permitida. Solo los administradores pueden gestionar aliados.');
+      showToast('Solo los administradores pueden gestionar aliados.', 'error');
       return;
     }
     try {
@@ -395,16 +463,17 @@ export default function SettingsPage() {
       
       if (error) throw error;
       setEditingAllyId(null);
+      showToast('Nombre de aliado actualizado', 'success');
       fetchAllies(true);
     } catch (err) {
       console.error('Error updating ally:', err);
-      alert('Error al actualizar el nombre del aliado');
+      showToast('Error al actualizar el nombre del aliado', 'error');
     }
   };
 
   const handleAddAlly = async () => {
     if (currentUserRole !== 'admin') {
-      alert('Operación no permitida. Solo los administradores pueden gestionar aliados.');
+      showToast('Solo los administradores pueden gestionar aliados.', 'error');
       return;
     }
     if (!newAlly.name || !newAlly.table_name) return;
@@ -428,10 +497,11 @@ export default function SettingsPage() {
       
       setIsAddingAlly(false);
       setNewAlly({ name: '', table_name: '', category: 'Aliados' });
+      showToast('Aliado añadido con éxito', 'success');
       fetchAllies(true);
     } catch (err) {
       console.error('Error adding ally:', err);
-      alert('Error al añadir aliado. Asegúrese de que el nombre de tabla sea único.');
+      showAlert('Error al Añadir', 'Error al añadir aliado. Asegúrese de que el nombre de tabla sea único.', 'error');
     }
   };
 
@@ -845,13 +915,24 @@ export default function SettingsPage() {
                               >
                                 <Edit2 className="w-4 h-4 text-primary" />
                               </button>
-                              <button 
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="p-2 hover:bg-red-50 rounded-xl transition-all"
-                                title="Eliminar Usuario"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-400" />
-                              </button>
+                              {user.status === 'pending' && (
+                                <button 
+                                  onClick={() => handleResendInvite(user)}
+                                  className="p-2 hover:bg-amber-50 rounded-xl transition-all"
+                                  title="Reenviar Invitación"
+                                >
+                                  <Mail className="w-4 h-4 text-amber-500" />
+                                </button>
+                              )}
+                              {user.email !== 'edcastilloblanco@gmail.com' && user.email !== currentUserEmail && (
+                                <button 
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  className="p-2 hover:bg-red-50 rounded-xl transition-all"
+                                  title="Eliminar Usuario"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-400" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
