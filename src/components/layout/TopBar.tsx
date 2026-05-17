@@ -21,13 +21,21 @@ export function TopBar({ title }: TopBarProps) {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select('full_name, role, email, nombre, apellido, alias')
+          .select('full_name, role, email, nombre, apellido, alias, status')
           .eq('id', user.id)
           .single()
 
         const isSuperUser = user.email === 'edcastilloblanco@gmail.com' || user.email === 'edycb2025@gmail.com'
 
         if (data) {
+          // Si el usuario tiene estatus "pendiente", se activa automáticamente al abrir la app
+          if (data.status === 'pending') {
+            await supabase
+              .from('profiles')
+              .update({ status: 'active' })
+              .eq('id', user.id)
+          }
+
           const name = data.alias || data.nombre || data.full_name || user.email?.split('@')[0] || 'Usuario'
           setProfile({
             full_name: name,

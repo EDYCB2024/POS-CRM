@@ -153,17 +153,39 @@ export default function SettingsPage() {
     
     setLoadingUsers(true);
     try {
+      // Determine the redirect URL, fallback to production domain if running on localhost
+      const redirectToUrl = typeof window !== 'undefined' && !window.location.origin.includes('localhost') 
+        ? `${window.location.origin}/auth/callback` 
+        : 'https://pos-crm-rho.vercel.app/auth/callback';
+
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
           email: userFormData.email,
           full_name: userFormData.full_name,
-          role: userFormData.role
+          role: userFormData.role,
+          redirectTo: redirectToUrl
         }
       });
 
       if (error) throw error;
       
-      alert('Invitación enviada con éxito');
+      // Update profile with the selected role and set status to 'pending'
+      const invitedUser = data?.data?.user;
+      if (invitedUser?.id) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            role: userFormData.role,
+            status: 'pending'
+          })
+          .eq('id', invitedUser.id);
+          
+        if (updateError) {
+          console.error('Error updating user profile status to pending:', updateError);
+        }
+      }
+      
+      alert('Invitación enviada con éxito y usuario registrado como Pendiente');
       setIsAddingUser(false);
       setUserFormData({ full_name: '', email: '', role: 'editor', status: 'active' });
       fetchUsers(true);
@@ -732,6 +754,7 @@ export default function SettingsPage() {
                             onChange={(e) => setUserFormData({...userFormData, status: e.target.value})}
                           >
                             <option value="active">Activo</option>
+                            <option value="pending">Pendiente</option>
                             <option value="inactive">Inactivo</option>
                           </select>
                         </div>
@@ -795,9 +818,11 @@ export default function SettingsPage() {
                             <div className="text-right">
                               <p className={cn(
                                 "text-[10px] font-black uppercase tracking-widest",
-                                user.status === 'active' ? "text-green-500" : "text-red-500"
+                                user.status === 'active' ? "text-green-500" : 
+                                user.status === 'pending' ? "text-amber-500" : "text-red-500"
                               )}>
-                                {user.status === 'active' ? '● Activo' : '○ Inactivo'}
+                                {user.status === 'active' ? '● Activo' : 
+                                 user.status === 'pending' ? '◒ Pendiente' : '○ Inactivo'}
                               </p>
                               <p className="text-[9px] font-bold text-outline uppercase tracking-widest mt-1">
                                 Miembro desde {new Date(user.created_at).toLocaleDateString()}

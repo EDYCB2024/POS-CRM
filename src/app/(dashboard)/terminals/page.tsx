@@ -78,8 +78,6 @@ export default function TerminalsPage() {
 
   const handleDelete = async (terminal: any) => {
     if (!terminal) return;
-    const confirmDelete = window.confirm(`¿Está seguro de que desea eliminar permanentemente el terminal con serial ${terminal.serial || terminal.serial_de_remplazo}?`);
-    if (!confirmDelete) return;
 
     try {
       setIsDeleting(true);
@@ -100,6 +98,8 @@ export default function TerminalsPage() {
           alerts: Math.floor(newTotal * 0.04)
         };
       });
+      
+      alert('Equipo eliminado con éxito');
       setDeleteConfirmTerminal(null);
     } catch (err: any) {
       console.error('Error deleting terminal:', err);
