@@ -203,7 +203,7 @@ export function TerminalDetailsModal({
         // Pre-fill known data
         if (newFormData.hasOwnProperty('serial')) newFormData.serial = serial || '';
         if (newFormData.hasOwnProperty('fecha')) newFormData.fecha = new Date().toISOString().split('T')[0];
-        if (newFormData.hasOwnProperty('estatus')) newFormData.estatus = 'EN REVISION';
+        if (newFormData.hasOwnProperty('estatus')) newFormData.estatus = 'POR DEFINIR';
         if (newFormData.hasOwnProperty('garantia')) newFormData.garantia = 'POR DEFINIR';
         if (newFormData.hasOwnProperty('estatus_del_caso')) newFormData.estatus_del_caso = 'CASO ABIERTO';
 
@@ -213,6 +213,7 @@ export function TerminalDetailsModal({
           const { data } = await supabase
             .from(actualTableName)
             .select(nidCol)
+            .not(nidCol, 'is', null)
             .order(nidCol, { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -244,9 +245,14 @@ export function TerminalDetailsModal({
     }
   }, [selectedTable, isNew, alliesList, defaultAliados, serial]);
   
-  const handleExternalLookup = async () => {
-    if (!formData?.serial) {
-      alert('Por favor ingrese un serial');
+  const handleExternalLookup = async (type: 'serial' | 'rif' | 'razon' = 'serial') => {
+    let searchValue = '';
+    if (type === 'serial') searchValue = formData?.serial || '';
+    else if (type === 'rif') searchValue = formData?.rif || '';
+    else if (type === 'razon') searchValue = formData?.razon_social || formData?.razn_social || '';
+
+    if (!searchValue) {
+      alert(`Por favor ingrese un ${type} para buscar`);
       return;
     }
 
@@ -255,48 +261,64 @@ export function TerminalDetailsModal({
       const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
       const actualTableName = selectedAllyConfig?.table_name || selectedTable;
 
-      if (actualTableName === 'vatc') {
-        const { data } = await supabase
-          .from('bd_clientes')
-          .select('razon, cliente, procesadora')
-          .eq('serial', formData.serial);
+      if (actualTableName === 'vatc' || actualTableName === 'banplus' || actualTableName === 'ccr') {
+        let query = supabase.from('bd_clientes').select('razon, cliente, procesadora, serial');
+        
+        if (type === 'serial') query = query.eq('serial', searchValue);
+        else if (type === 'rif') query = query.ilike('cliente', `%${searchValue}%`);
+        else if (type === 'razon') query = query.ilike('razon', `%${searchValue}%`);
+
+        const { data, error } = await query.limit(20);
+
+        if (error) throw error;
 
         if (data && data.length > 0) {
-          const latestRecord = data[data.length - 1];
-          setFormData((prev: any) => ({
-            ...prev,
-            factura: 'NO ENCONTRADO',
-            procesadora: latestRecord.procesadora || 'NO ENCONTRADO',
-            razon_social: latestRecord.razon || 'NO ENCONTRADO',
-            rif: latestRecord.cliente || 'NO ENCONTRADO'
-          }));
           if (data.length > 1) {
-            alert(`¡Atención! Este serial se encuentra ${data.length} veces en la base de datos de clientes. Se cargó el registro más reciente.`);
+            // If multiple results, show a simple selection (MVP: use first one but alert)
+            const selection = data[0];
+            const confirmFill = window.confirm(`Se encontraron ${data.length} coincidencias. ¿Desea cargar los datos de "${selection.razon}"?`);
+            if (!confirmFill) return;
+            
+            setFormData((prev: any) => ({
+              ...prev,
+              razon_social: selection.razon || prev.razon_social,
+              razn_social: selection.razon || prev.razn_social,
+              rif: selection.cliente || prev.rif,
+              procesadora: selection.procesadora || prev.procesadora,
+              serial: selection.serial || prev.serial
+            }));
           } else {
-            alert('Datos de cliente cargados.');
+            const latestRecord = data[0];
+            setFormData((prev: any) => ({
+              ...prev,
+              razon_social: latestRecord.razon || prev.razon_social,
+              razn_social: latestRecord.razon || prev.razn_social,
+              rif: latestRecord.cliente || prev.rif,
+              procesadora: latestRecord.procesadora || prev.procesadora,
+              serial: latestRecord.serial || prev.serial
+            }));
+            alert('Datos cargados correctamente.');
           }
         } else {
-          alert('Serial no encontrado en la base de datos de clientes.');
+          alert('No se encontraron registros en la base de datos de clientes.');
         }
       } else if (actualTableName === 'platco' || actualTableName === 'platco_pos') {
         const { data } = await supabase
           .from('bd_platco')
-          .select('fecha_de_entrega')
-          .eq('seriales', formData.serial);
+          .select('fecha_de_entrega, razon_social, rif')
+          .eq('seriales', searchValue);
 
         if (data && data.length > 0) {
           const latestRecord = data[data.length - 1];
           setFormData((prev: any) => ({
             ...prev,
-            fecha_venta: latestRecord.fecha_de_entrega || 'NO ENCONTRADO'
+            fecha_venta: latestRecord.fecha_de_entrega || prev.fecha_venta,
+            razon_social: latestRecord.razon_social || prev.razon_social,
+            rif: latestRecord.rif || prev.rif
           }));
-          if (data.length > 1) {
-            alert(`¡Atención! Este serial se encuentra ${data.length} veces en la base de datos de Platco. Se cargó la fecha más reciente.`);
-          } else {
-            alert('Fecha de venta cargada.');
-          }
+          alert('Datos de Platco cargados.');
         } else {
-          alert('Serial no encontrado en la base de datos de Platco.');
+          alert('Serial no encontrado en Platco.');
         }
       }
     } catch (err) {
@@ -337,22 +359,17 @@ export function TerminalDetailsModal({
   useEffect(() => {
     if (!isOpen || isNew || !serial) return
 
-    // If we already have the data, just set it and skip the fetch
-    if (initialData) {
-      setFormData({ ...initialData, sourceTable: targetTableName })
-      setHistory([{ ...initialData, sourceTable: targetTableName }])
-      setLoading(false)
-      return
-    }
-
     async function fetchMainRecord() {
       setLoading(true)
       try {
-        const { data, error } = await supabase
-          .from(targetTableName)
-          .select('*')
-          .or(`serial.eq.${serial},serial_de_remplazo.eq.${serial}`)
-          .maybeSingle()
+        let query = supabase.from(targetTableName).select('*');
+        if (initialData?.id) {
+          query = query.eq('id', initialData.id);
+        } else {
+          query = query.or(`serial.eq.${serial},serial_de_remplazo.eq.${serial}`);
+        }
+
+        const { data, error } = await query.maybeSingle();
 
         if (data) {
           setFormData({ ...data, sourceTable: targetTableName })
@@ -366,7 +383,7 @@ export function TerminalDetailsModal({
     }
 
     fetchMainRecord()
-  }, [isOpen, serial, isNew, currentSlug])
+  }, [isOpen, serial, isNew, currentSlug, initialData?.id])
 
   // Fetch Full History ONLY when switching to history tab (Lazy Load)
   useEffect(() => {
@@ -723,8 +740,8 @@ export function TerminalDetailsModal({
                                         onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
                                         className="w-full bg-primary/5 border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                                       >
-                                        <option value="">Seleccione estatus...</option>
-                                        {statuses.map(s => (
+                                        <option value="POR DEFINIR">POR DEFINIR</option>
+                                        {statuses.filter(s => s.toUpperCase() !== 'POR DEFINIR').map(s => (
                                           <option key={s} value={s}>{s}</option>
                                         ))}
                                       </select>
@@ -750,14 +767,18 @@ export function TerminalDetailsModal({
                                             (isNid || isBlockedField) && "opacity-50 cursor-not-allowed bg-slate-100"
                                           )}
                                         />
-                                        {isNew && (selectedTable === 'vatc' || selectedTable === 'platco' || selectedTable === 'platco_pos') && key.toLowerCase() === 'serial' && (
+                                        {isNew && (key.toLowerCase() === 'serial' || key.toLowerCase() === 'rif' || key.toLowerCase() === 'razon_social' || key.toLowerCase() === 'razn_social') && (
                                           <button
-                                            onClick={handleExternalLookup}
+                                            onClick={() => handleExternalLookup(
+                                              key.toLowerCase() === 'serial' ? 'serial' : 
+                                              key.toLowerCase() === 'rif' ? 'rif' : 'razon'
+                                            )}
                                             disabled={loading}
                                             className="bg-primary text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
+                                            title="Buscar en base de datos"
                                           >
                                             {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Settings className="w-3 h-3" />}
-                                            Buscar en BD
+                                            Consultar
                                           </button>
                                         )}
                                       </div>

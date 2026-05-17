@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 
 const kpis = [
   {
-    title: "Active Terminals",
+    title: "Total Terminals",
     value: "1,248",
     change: "Stable",
     comparison: "98% uptime across all zones",
@@ -63,16 +63,22 @@ const activity = [
 export default function AnalyticsPage() {
   const [activeTerminals, setActiveTerminals] = useState<number>(0);
   const [modelData, setModelData] = useState<{name: string, count: number, percentage: number}[]>([]);
+  const [tablesCount, setTablesCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const tables = [
-          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 
-          'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-          'poscom', 'paytech', 'bestpay', 'bancrecer'
-        ];
+        // Fetch active allies from allies_config table dynamically
+        const { data: configData, error: configError } = await supabase
+          .from('allies_config')
+          .select('table_name')
+          .eq('is_active', true);
+
+        if (configError) throw configError;
+
+        const tables = configData ? configData.map(c => c.table_name) : [];
+        setTablesCount(tables.length);
 
         const results = await Promise.all(
           tables.map(table => 
@@ -97,7 +103,7 @@ export default function AnalyticsPage() {
           .map(([name, count]) => ({ 
             name, 
             count, 
-            percentage: Math.round((count / total) * 100) 
+            percentage: total > 0 ? Math.round((count / total) * 100) : 0
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 12); 
@@ -118,7 +124,7 @@ export default function AnalyticsPage() {
     {
       ...kpis[0],
       value: loading ? "..." : activeTerminals.toLocaleString(),
-      comparison: `Total gestionado en ${loading ? '...' : '13'} aliados`
+      comparison: `Total general gestionado en ${loading ? '...' : tablesCount} aliados`
     }
   ];
 

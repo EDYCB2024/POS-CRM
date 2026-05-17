@@ -2,7 +2,7 @@
 
 ## 1. Información General
 **Nombre del Proyecto:** POS-CRM
-**Descripción:** POS-CRM es una plataforma centralizada diseñada para optimizar la gestión, seguimiento y soporte técnico de terminales de puntos de venta (POS). La solución resuelve la fragmentación de datos entre diferentes aliados financieros, proporcionando un centro de control unificado para el monitoreo de estatus, gestión de inventario, registro de fallas y análisis de ventas en tiempo real.
+**Descripción:** POS-CRM es una plataforma centralizada diseñada para optimizar la gestión, seguimiento y soporte técnico de terminales de puntos de venta (POS). La solución resuelve la fragmentación de datos entre diferentes aliados financieros, proporcionando un centro de control unificado para el monitoreo de estatus, gestión de inventario y registro de fallas.
 
 ## 2. Stack Tecnológico
 El proyecto utiliza un stack moderno y escalable orientado a la alta disponibilidad y rendimiento:

@@ -23,7 +23,8 @@ import {
   LifeBuoy,
   FileText,
   MessageSquare,
-  Plus
+  Plus,
+  Inbox
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
@@ -247,6 +248,23 @@ export function Sidebar() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Almacén y Despacho Section */}
+          <div className="pt-4 mt-2">
+            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Almacén y Despacho</div>
+            <Link
+              href={"/almacen/recepcion" as any}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1",
+                pathname === '/almacen/recepcion'
+                  ? "bg-primary text-white shadow-lg shadow-primary/20"
+                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
+              )}
+            >
+              <Inbox className={cn("w-5 h-5", pathname === '/almacen/recepcion' ? "text-white" : "text-primary/70 group-hover:text-primary")} />
+              <span>Recepción de Equipos</span>
+            </Link>
           </div>
 
           {/* Inventario Section */}

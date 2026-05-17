@@ -5,14 +5,13 @@ import Link from "next/link";
 import { TopBar } from "@/components/layout/TopBar";
 import { 
   Smartphone,
-  Plus,
   Zap,
   Search,
   LayoutGrid,
   FileText
 } from 'lucide-react';
 
-export default function DashboardPage() {
+export default function HomeLandingPage() {
   return (
     <>
       <TopBar title="Inicio - POS CRM" />
@@ -101,7 +100,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-
     </>
   );
 }

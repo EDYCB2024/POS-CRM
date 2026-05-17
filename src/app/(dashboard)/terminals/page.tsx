@@ -3,6 +3,7 @@
 import { TopBar } from "@/components/layout/TopBar";
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import {
   Smartphone,
   CheckCircle,
@@ -23,7 +24,9 @@ import {
   ShieldCheck,
   ShieldX,
   ExternalLink,
-  Database
+  Database,
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
@@ -67,6 +70,44 @@ export default function TerminalsPage() {
   const [selectedSlug, setSelectedSlug] = useState('');
   const [selectedRow, setSelectedRow] = useState<any>(null);
   const [exportProgress, setExportProgress] = useState(0);
+
+  const [openMenuTerminal, setOpenMenuTerminal] = useState<any | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmTerminal, setDeleteConfirmTerminal] = useState<any | null>(null);
+
+  const handleDelete = async (terminal: any) => {
+    if (!terminal) return;
+    const confirmDelete = window.confirm(`¿Está seguro de que desea eliminar permanentemente el terminal con serial ${terminal.serial || terminal.serial_de_remplazo}?`);
+    if (!confirmDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from(terminal.sourceTable)
+        .delete()
+        .eq('id', terminal.id);
+
+      if (error) throw error;
+
+      // Update UI state
+      setRecentTerminals(prev => prev.filter(t => !(t.sourceTable === terminal.sourceTable && t.id === terminal.id)));
+      setStatsData(prev => {
+        const newTotal = Math.max(0, prev.total - 1);
+        return {
+          total: newTotal,
+          active: Math.floor(newTotal * 0.96),
+          alerts: Math.floor(newTotal * 0.04)
+        };
+      });
+      setDeleteConfirmTerminal(null);
+    } catch (err: any) {
+      console.error('Error deleting terminal:', err);
+      alert('Error al eliminar el terminal: ' + (err.message || err));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const fetchRealData = async (force: boolean = false) => {
     if (!force && cachedTerminalsData && !searchQuery) {
@@ -131,6 +172,16 @@ export default function TerminalsPage() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [searchQuery]);
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setOpenMenuTerminal(null);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+    };
+  }, []);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -268,7 +319,7 @@ export default function TerminalsPage() {
         <div className="mb-xl flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="mb-xs text-2xl md:text-3xl">Gestión de Terminales</h1>
-            <p className="text-body-md text-on-surface-variant">Monitoreo y exportación global de terminales POS.</p>
+            <p className="text-body-md text-on-surface-variant">Monitoreo y exportación global de terminales POS (Cantidad Total: {statsData.total.toLocaleString()}).</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <div className="flex flex-col gap-2 w-full sm:w-auto">
@@ -292,21 +343,7 @@ export default function TerminalsPage() {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
-          {stats.map((stat) => (
-            <div key={stat.label} className="bg-white p-lg rounded-xl border border-outline-variant">
-              <div className="flex justify-between items-start mb-md">
-                <div className={cn("p-2 rounded-lg", stat.color)}>
-                  <stat.icon className={cn("w-5 h-5", stat.iconColor)} />
-                </div>
-                <span className="text-label-sm font-bold uppercase tracking-wider text-primary">{stat.change}</span>
-              </div>
-              <p className="text-label-md text-on-surface-variant mb-xs">{stat.label}</p>
-              <h3 className="text-h1">{stat.value}</h3>
-            </div>
-          ))}
-        </div>
+
 
         <div className="bg-white rounded-xl border border-outline-variant overflow-hidden">
           <div className="px-lg py-md border-b border-outline-variant bg-surface-container-low flex flex-col md:flex-row justify-between items-center gap-4">
@@ -339,95 +376,106 @@ export default function TerminalsPage() {
 
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="px-lg py-md text-label-md text-on-surface-variant">Terminal ID / Serial</th>
-                <th className="px-lg py-md text-label-md text-on-surface-variant">Razón Social</th>
-                <th className="px-lg py-md text-label-md text-on-surface-variant">Estatus</th>
-                <th className="px-lg py-md text-label-md text-on-surface-variant">Garantía</th>
-                <th className="px-lg py-md text-label-md text-on-surface-variant">Aliado / Origen</th>
-                <th className="px-lg py-md text-label-md text-on-surface-variant text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-lg py-12 text-center">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
-                    <p className="text-xs font-bold text-outline uppercase tracking-widest">Cargando datos recientes...</p>
-                  </td>
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant">
+                  <th className="px-lg py-md text-label-md text-on-surface-variant">Terminal ID / Serial</th>
+                  <th className="px-lg py-md text-label-md text-on-surface-variant">Razón Social</th>
+                  <th className="px-lg py-md text-label-md text-on-surface-variant">Estatus</th>
+                  <th className="px-lg py-md text-label-md text-on-surface-variant">Garantía</th>
+                  <th className="px-lg py-md text-label-md text-on-surface-variant">Aliado / Origen</th>
+                  <th className="px-lg py-md text-label-md text-on-surface-variant text-right">Acciones</th>
                 </tr>
-              ) : recentTerminals.map((terminal) => (
-                <tr
-                  key={`${terminal.sourceTable}-${terminal.id}`}
-                  onClick={() => {
-                    setSelectedSerial(terminal.serial || terminal.serial_de_remplazo);
-                    setSelectedSlug(terminal.sourceTable);
-                    setSelectedRow(terminal);
-                    setIsModalOpen(true);
-                  }}
-                  className="hover:bg-primary/5 transition-colors group cursor-pointer"
-                >
-                  <td className="px-lg py-md">
-                    <p className="font-semibold text-primary">{terminal.serial || terminal.serial_de_remplazo}</p>
-                    <p className="text-xs text-on-surface-variant">{terminal.modelo || 'N/A'}</p>
-                  </td>
-                  <td className="px-lg py-md">
-                    <div className="flex items-center gap-sm">
-                      <Store className="text-outline w-4 h-4" />
-                      <span className="text-body-md truncate max-w-[200px]">{terminal.razon_social || terminal.razn_social || '-'}</span>
-                    </div>
-                  </td>
-                  <td className="px-lg py-md">
-                    <div className={cn(
-                      "inline-flex items-center px-sm py-xs rounded-full text-label-sm font-bold border",
-                      terminal.estatus?.toLowerCase().includes('entregado') || terminal.estatus?.toLowerCase().includes('operativo')
-                        ? "bg-green-50 text-green-700 border-green-200"
-                        : "bg-amber-50 text-amber-700 border-amber-200"
-                    )}>
-                      {terminal.estatus || 'EN REVISION'}
-                    </div>
-                  </td>
-                  <td className="px-lg py-md">
-                    {terminal.garantia?.toLowerCase() === 'si' ? (
-                      <span className="flex items-center gap-1 text-[10px] font-black text-green-600 uppercase tracking-tight">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Vigente
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-lg py-12 text-center">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
+                      <p className="text-xs font-bold text-outline uppercase tracking-widest">Cargando datos recientes...</p>
+                    </td>
+                  </tr>
+                ) : recentTerminals.map((terminal) => (
+                  <tr
+                    key={`${terminal.sourceTable}-${terminal.id}`}
+                    onClick={() => {
+                      setSelectedSerial(terminal.serial || terminal.serial_de_remplazo);
+                      setSelectedSlug(terminal.sourceTable);
+                      setSelectedRow(terminal);
+                      setIsModalOpen(true);
+                    }}
+                    className="hover:bg-primary/5 transition-colors group cursor-pointer"
+                  >
+                    <td className="px-lg py-md">
+                      <p className="font-semibold text-primary">{terminal.serial || terminal.serial_de_remplazo}</p>
+                      <p className="text-xs text-on-surface-variant">{terminal.modelo || 'N/A'}</p>
+                    </td>
+                    <td className="px-lg py-md">
+                      <div className="flex items-center gap-sm">
+                        <Store className="text-outline w-4 h-4" />
+                        <span className="text-body-md truncate max-w-[200px]">{terminal.razon_social || terminal.razn_social || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-lg py-md">
+                      <div className={cn(
+                        "inline-flex items-center px-sm py-xs rounded-full text-label-sm font-bold border",
+                        terminal.estatus?.toLowerCase().includes('entregado') || terminal.estatus?.toLowerCase().includes('operativo')
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      )}>
+                        {terminal.estatus || 'EN REVISION'}
+                      </div>
+                    </td>
+                    <td className="px-lg py-md">
+                      {terminal.garantia?.toLowerCase() === 'si' ? (
+                        <span className="flex items-center gap-1 text-[10px] font-black text-green-600 uppercase tracking-tight">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Vigente
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase tracking-tight opacity-60">
+                          <ShieldX className="w-3.5 h-3.5" />
+                          Vencida
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-lg py-md">
+                      <span className="text-[10px] font-black uppercase text-outline bg-slate-100 px-2 py-1 rounded">
+                        {terminal.sourceTable.toUpperCase()}
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase tracking-tight opacity-60">
-                        <ShieldX className="w-3.5 h-3.5" />
-                        Vencida
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-lg py-md">
-                    <span className="text-[10px] font-black uppercase text-outline bg-slate-100 px-2 py-1 rounded">
-                      {terminal.sourceTable.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-lg py-md text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-2">
-                      <Link 
-                        href={`/print/informe?serial=${terminal.serial || terminal.serial_de_remplazo}`}
-                        target="_blank"
-                        className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-all"
-                        title="Ver Informe"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                      <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td className="px-lg py-md text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-2">
+                        <Link
+                          href={`/print/informe?serial=${terminal.serial || terminal.serial_de_remplazo}`}
+                          target="_blank"
+                          className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-all"
+                          title="Ver Informe"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMenuPosition({
+                              top: rect.bottom + window.scrollY,
+                              left: rect.left + window.scrollX - 120
+                            });
+                            setOpenMenuTerminal(terminal);
+                          }}
+                          className="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant hover:text-primary active:scale-95 transition-all cursor-pointer"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       <TerminalDetailsModal
         isOpen={isModalOpen}
@@ -441,6 +489,84 @@ export default function TerminalsPage() {
         onSuccess={() => fetchRealData(true)}
         initialData={selectedRow}
       />
+
+      {openMenuTerminal && menuPosition && createPortal(
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute z-[9999] min-w-[190px] bg-white/95 backdrop-blur-md rounded-2xl border border-outline-variant shadow-2xl p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          style={{ top: menuPosition.top + 4, left: menuPosition.left }}
+        >
+          <button
+            onClick={() => {
+              setSelectedSerial(openMenuTerminal.serial || openMenuTerminal.serial_de_remplazo);
+              setSelectedSlug(openMenuTerminal.sourceTable);
+              setSelectedRow(openMenuTerminal);
+              setIsModalOpen(true);
+              setOpenMenuTerminal(null);
+            }}
+            className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all flex items-center gap-3 active:scale-98"
+          >
+            <Pencil className="w-4 h-4 text-slate-500" />
+            Editar Equipo
+          </button>
+          <button
+            onClick={() => {
+              setDeleteConfirmTerminal(openMenuTerminal);
+              setOpenMenuTerminal(null);
+            }}
+            className="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50/80 rounded-xl transition-all flex items-center gap-3 active:scale-98"
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+            Eliminar Equipo
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {deleteConfirmTerminal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            onClick={() => setDeleteConfirmTerminal(null)}
+            className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300"
+          />
+
+          {/* Modal Container */}
+          <div className="bg-surface rounded-[32px] border border-outline-variant shadow-2xl w-[440px] max-w-[95vw] overflow-hidden relative z-10 p-8 text-center flex flex-col items-center transition-all duration-300 scale-100">
+            <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-full flex items-center justify-center mb-6">
+              <Trash2 className="w-8 h-8 text-red-600 animate-pulse" />
+            </div>
+
+            <h3 className="text-xl font-black text-on-surface mb-2 uppercase tracking-wide">
+              ¿Confirmar Eliminación?
+            </h3>
+
+            <p className="text-sm font-bold text-on-surface-variant mb-6 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar el terminal con serial <strong className="text-primary font-extrabold">{deleteConfirmTerminal.serial || deleteConfirmTerminal.serial_de_remplazo}</strong>?
+              <br />
+              <span className="text-xs font-semibold text-outline">Esta acción no se puede deshacer y borrará permanentemente el registro de la tabla <strong className="uppercase">{deleteConfirmTerminal.sourceTable}</strong>.</span>
+            </p>
+
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={() => setDeleteConfirmTerminal(null)}
+                disabled={isDeleting}
+                className="flex-1 py-3 border border-outline-variant rounded-2xl font-bold text-xs uppercase tracking-widest text-on-surface hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirmTerminal)}
+                disabled={isDeleting}
+                className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-red-600/20 cursor-pointer"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }

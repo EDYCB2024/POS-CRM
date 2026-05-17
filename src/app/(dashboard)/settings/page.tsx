@@ -38,6 +38,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity' | 'allies' | 'users'>('profile');
   
+  // Role based access control state
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [loadingRole, setLoadingRole] = useState(true);
+  
   // Allies Management State
   const [allies, setAllies] = useState<any[]>([]);
   const [loadingAllies, setLoadingAllies] = useState(true);
@@ -141,6 +145,10 @@ export default function SettingsPage() {
   };
 
   const handleAddUser = async () => {
+    if (currentUserRole !== 'admin') {
+      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      return;
+    }
     if (!userFormData.email) return;
     
     setLoadingUsers(true);
@@ -168,6 +176,10 @@ export default function SettingsPage() {
   };
 
   const handleUpdateUser = async (id: string) => {
+    if (currentUserRole !== 'admin') {
+      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      return;
+    }
     try {
       const { error } = await supabase
         .from('profiles')
@@ -185,6 +197,10 @@ export default function SettingsPage() {
   };
 
   const handleDeleteUser = async (id: string) => {
+    if (currentUserRole !== 'admin') {
+      alert('Operación no permitida. Solo los administradores pueden gestionar usuarios.');
+      return;
+    }
     if (!window.confirm('¿Está seguro de eliminar este usuario?')) return;
     try {
       const { error } = await supabase
@@ -290,19 +306,65 @@ export default function SettingsPage() {
     }
   };
 
+  // Fetch current user's profile and role on mount
   useEffect(() => {
-    if (activeTab === 'activity') {
+    const loadCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Secure bypass for super admins to ensure they always have all options
+        if (user.email === 'edcastilloblanco@gmail.com' || user.email === 'edycb2025@gmail.com') {
+          setCurrentUserRole('admin');
+          setLoadingRole(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (data) {
+          setCurrentUserRole(data.role || 'editor');
+        } else {
+          setCurrentUserRole('editor');
+        }
+      } catch (err) {
+        console.error('Error fetching user role:', err);
+        setCurrentUserRole('editor');
+      } finally {
+        setLoadingRole(false);
+      }
+    };
+    loadCurrentUser();
+  }, []);
+
+  // Reset tab to profile if a non-admin tries to access admin tabs
+  useEffect(() => {
+    if (!loadingRole && currentUserRole !== 'admin' && ['users', 'allies', 'activity'].includes(activeTab)) {
+      setActiveTab('profile');
+    }
+  }, [activeTab, currentUserRole, loadingRole]);
+
+  useEffect(() => {
+    if (activeTab === 'activity' && currentUserRole === 'admin') {
       fetchLogs();
-    } else if (activeTab === 'allies') {
+    } else if (activeTab === 'allies' && currentUserRole === 'admin') {
       fetchAllies();
-    } else if (activeTab === 'users') {
+    } else if (activeTab === 'users' && currentUserRole === 'admin') {
       fetchUsers();
     } else if (activeTab === 'profile') {
       fetchProfile();
     }
-  }, [activeTab]);
+  }, [activeTab, currentUserRole]);
 
   const handleUpdateAllyName = async (id: string) => {
+    if (currentUserRole !== 'admin') {
+      alert('Operación no permitida. Solo los administradores pueden gestionar aliados.');
+      return;
+    }
     try {
       const { error } = await supabase
         .from('allies_config')
@@ -319,6 +381,10 @@ export default function SettingsPage() {
   };
 
   const handleAddAlly = async () => {
+    if (currentUserRole !== 'admin') {
+      alert('Operación no permitida. Solo los administradores pueden gestionar aliados.');
+      return;
+    }
     if (!newAlly.name || !newAlly.table_name) return;
     
     try {
@@ -363,32 +429,41 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Navigation */}
           <div className="lg:col-span-3 space-y-2">
-            {[
-              { id: 'profile', label: 'Mi Perfil', icon: User },
-              { id: 'security', label: 'Seguridad', icon: Shield },
-              { id: 'users', label: 'Gestión de Usuarios', icon: UsersIcon },
-              { id: 'allies', label: 'Gestión de Aliados', icon: Building2 },
-              { id: 'activity', label: 'Activity Log', icon: History },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all border",
-                  activeTab === tab.id 
-                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                    : "bg-white text-on-surface border-outline-variant hover:border-primary/50"
-                )}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
+            {loadingRole ? (
+              // Skeleton loaders for tabs
+              Array(2).fill(0).map((_, i) => (
+                <div key={i} className="h-12 w-full bg-slate-100/50 rounded-xl animate-pulse border border-outline-variant/30" />
+              ))
+            ) : (
+              [
+                { id: 'profile', label: 'Mi Perfil', icon: User },
+                { id: 'security', label: 'Seguridad', icon: Shield },
+                ...(currentUserRole === 'admin' ? [
+                  { id: 'users', label: 'Gestión de Usuarios', icon: UsersIcon },
+                  { id: 'allies', label: 'Gestión de Aliados', icon: Building2 },
+                  { id: 'activity', label: 'Activity Log', icon: History }
+                ] : [])
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all border",
+                    activeTab === tab.id 
+                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                      : "bg-white text-on-surface border-outline-variant hover:border-primary/50"
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))
+            )}
           </div>
 
           {/* Content Area */}
           <div className="lg:col-span-9 bg-white border border-outline-variant rounded-[32px] overflow-hidden shadow-sm min-h-[600px]">
-            {activeTab === 'activity' && (
+            {activeTab === 'activity' && currentUserRole === 'admin' && (
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -458,7 +533,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {activeTab === 'allies' && (
+            {activeTab === 'allies' && currentUserRole === 'admin' && (
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -581,7 +656,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {activeTab === 'users' && (
+            {activeTab === 'users' && currentUserRole === 'admin' && (
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-3">

@@ -82,9 +82,8 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50 p-8 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <form onSubmit={handleProcess} className="bg-white p-8 rounded-[32px] border border-outline-variant shadow-sm space-y-6">
+          <div className="max-w-2xl mx-auto space-y-6">
+            <form onSubmit={handleProcess} className="bg-white p-8 rounded-[32px] border border-outline-variant shadow-sm space-y-6">
                 
                 {/* Ally Selector */}
                 <div className="space-y-2">
@@ -113,7 +112,7 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
                     <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">
-                      Seriales (uno por línea)
+                      Seriales (por línea o por coma)
                     </label>
                     <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                       {parsedCount} Detectados
@@ -122,7 +121,7 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                   <textarea
                     value={serialsText}
                     onChange={(e) => setSerialsText(e.target.value)}
-                    placeholder="Ejemplo:&#10;SN123456789&#10;SN987654321"
+                    placeholder="Ejemplo:&#10;SN123456789, SN987654321&#10;SN555555555"
                     rows={8}
                     className="w-full p-6 bg-surface-container-lowest border border-outline-variant rounded-[24px] text-sm font-mono text-primary placeholder:text-outline/30 focus:ring-4 focus:ring-primary/10 transition-all outline-none resize-none"
                   />
@@ -162,8 +161,8 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                       className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-bold text-primary focus:ring-4 focus:ring-primary/10 outline-none"
                     >
                       <option value="POR DEFINIR">Por Definir</option>
-                      <option value="si">Vigente (Si)</option>
-                      <option value="no">Vencida (No)</option>
+                      <option value="si">Si</option>
+                      <option value="no">No</option>
                     </select>
                   </div>
                 </div>
@@ -178,9 +177,9 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                     onChange={(e) => setStatus(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-bold text-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                   >
-                    <option value="">Seleccione estatus...</option>
+                    <option value="POR DEFINIR">Por Definir</option>
                     {statuses.length > 0 ? (
-                      statuses.map((s: string) => (
+                      statuses.filter((s: string) => s.toUpperCase() !== 'POR DEFINIR').map((s: string) => (
                         <option key={s} value={s}>{s}</option>
                       ))
                     ) : (
@@ -223,25 +222,7 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
                     </>
                   )}
                 </button>
-              </form>
-            </div>
-
-            <div className="space-y-6">
-              
-              <div className="bg-white p-6 rounded-[32px] border border-outline-variant">
-                <h4 className="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Información Adicional</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-black text-outline uppercase">Destino:</span>
-                    <span className="text-[10px] font-black text-primary uppercase">{selectedAlly || '---'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-black text-outline uppercase">OS:</span>
-                    <span className="text-[10px] font-black text-primary uppercase">{model ? (['ME51', 'SP600', 'ME60'].includes(model) ? 'LINUX' : 'ANDROID') : '---'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
 
@@ -250,7 +231,7 @@ export function BulkAddModal({ isOpen, onClose, onSuccess }: BulkAddModalProps) 
             onClick={onClose}
             className="px-8 py-3 text-xs font-black text-outline uppercase tracking-widest hover:text-primary transition-colors"
           >
-            Cerrar Ventana
+            Cancelar
           </button>
         </div>
       </div>

@@ -31,14 +31,17 @@ export function DashboardCharts() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const tables = [
-          'vatc', 'banplus', 'ccr', 'instapago', 'platco', 
-          'exterior', 'bancaribe', 'tokenp', 'bactivo', 
-          'poscom', 'paytech', 'bestpay', 'bancrecer'
-        ];
+        // Fetch active allies from allies_config table dynamically
+        const { data: configData, error: configError } = await supabase
+          .from('allies_config')
+          .select('table_name')
+          .eq('is_active', true);
+
+        if (configError) throw configError;
+
+        const tables = configData ? configData.map(c => c.table_name) : [];
 
         // Fetch counts for models and allies across all tables
-        // In a real app, this would be a single SQL view or function
         const modelMap: Record<string, number> = {};
         const allyMap: Record<string, number> = {};
 
@@ -52,7 +55,7 @@ export function DashboardCharts() {
           if (res.data) {
             res.data.forEach((item: any) => {
               const model = item.modelo || 'Unknown';
-              const ally = item.aliado || tables[index].toUpperCase();
+              const ally = item.aliado || (tables[index] ? tables[index].toUpperCase() : 'DESCONOCIDO');
               
               modelMap[model] = (modelMap[model] || 0) + 1;
               allyMap[ally] = (allyMap[ally] || 0) + 1;

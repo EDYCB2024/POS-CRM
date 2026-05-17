@@ -59,7 +59,7 @@ export default function AllyPage() {
   const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const pageSize = 20
+  const pageSize = 15
 
 
 
@@ -442,14 +442,14 @@ export default function AllyPage() {
 
   return (
     <main className="flex-1 flex flex-col min-h-screen bg-surface-container-lowest">
-      <TopBar title={`Aliado: ${slug?.toString().toUpperCase()}`} />
+      <TopBar title={`Aliado: ${slug?.toString().replace(/-/g, ' ').toUpperCase()}`} />
       
       <section className="p-4">
         <div className="mb-4 flex justify-between items-center">
           <div className="flex flex-col">
             <h1 className="text-xl uppercase tracking-tight font-black flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
-              {slug}
+              {slug?.toString().replace(/-/g, ' ').toUpperCase()}
             </h1>
             <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-widest ml-7">
               {totalCount.toLocaleString()} Registros
