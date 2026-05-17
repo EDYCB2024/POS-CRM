@@ -509,7 +509,7 @@ export default function SettingsPage() {
     <>
       <TopBar title="Configuración" />
       
-      <section className="p-8 max-w-7xl mx-auto w-full">
+      <section className="p-margin max-w-7xl mx-auto w-full">
         <div className="mb-10">
           <h1 className="text-3xl font-black uppercase tracking-tight text-primary flex items-center gap-3">
             <SettingsIcon className="w-8 h-8" />

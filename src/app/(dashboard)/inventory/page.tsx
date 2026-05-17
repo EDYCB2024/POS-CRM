@@ -156,7 +156,7 @@ export default function InventoryPage() {
   })
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-700">
+    <div className="p-margin space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-4xl font-black tracking-tight text-primary uppercase">Inventario</h1>

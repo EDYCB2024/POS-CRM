@@ -480,24 +480,24 @@ export default function AllyPage() {
 
 
         {/* Filtros */}
-        <div className="mb-4 bg-white p-3 rounded-xl border border-outline-variant flex gap-4 items-center shadow-sm">
-          <div className="flex flex-col gap-1">
+        <div className="mb-4 bg-white p-4 rounded-xl border border-outline-variant flex flex-wrap gap-4 items-end shadow-sm">
+          <div className="flex flex-col gap-1 w-full sm:w-auto flex-1 min-w-[200px]">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Buscar</label>
             <input 
               type="text" 
               placeholder="Serial, Cliente, Lote..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-64"
+              className="w-full px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
             />
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Mes</label>
             <select 
               value={filterMes}
               onChange={(e) => setFilterMes(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+              className="w-full sm:w-32 px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
             >
               <option value="">Todos</option>
               {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => (
@@ -506,12 +506,12 @@ export default function AllyPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Estatus</label>
             <select 
               value={filterEstatus}
               onChange={(e) => setFilterEstatus(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+              className="w-full sm:w-32 px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
             >
               <option value="">Todos</option>
               <option value="ENTREGADO">Entregado</option>
@@ -524,12 +524,12 @@ export default function AllyPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Estatus del Caso</label>
             <select 
               value={filterEstatusCaso}
               onChange={(e) => setFilterEstatusCaso(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none w-32"
+              className="w-full sm:w-32 px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
             >
               <option value="">Todos</option>
               <option value="ABIERTO">Caso Abierto</option>
@@ -537,40 +537,42 @@ export default function AllyPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Garantía</label>
-            <FilterDropdown 
-              label="Filtro"
-              currentValue={filterGarantia}
-              onSelect={setFilterGarantia}
-              options={[
-                { label: "Si", value: "si", icon: ShieldCheck },
-                { label: "No", value: "no", icon: ShieldX }
-              ]}
-            />
+            <div className="w-full">
+              <FilterDropdown 
+                label="Filtro"
+                currentValue={filterGarantia}
+                onSelect={setFilterGarantia}
+                options={[
+                  { label: "Si", value: "si", icon: ShieldCheck },
+                  { label: "No", value: "no", icon: ShieldX }
+                ]}
+              />
+            </div>
           </div>
 
           { (searchTerm || filterMes || filterEstatus || filterEstatusCaso || filterGarantia) && (
-            <>
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
               <button 
                 onClick={() => { setSearchTerm(''); setFilterMes(''); setFilterEstatus(''); setFilterEstatusCaso(''); setFilterGarantia(''); }}
-                className="mt-6 p-2 bg-slate-100 text-on-surface-variant hover:text-red-600 hover:bg-red-50 rounded-lg transition-all animate-in fade-in zoom-in duration-200"
+                className="p-2.5 bg-slate-100 text-on-surface-variant hover:text-red-600 hover:bg-red-50 rounded-lg transition-all animate-in fade-in zoom-in duration-200 flex-1 sm:flex-initial flex justify-center items-center"
                 title="Limpiar Filtros"
               >
                 <FilterX className="w-4 h-4" />
               </button>
 
-              <div className="h-8 w-px bg-outline-variant mt-4 mx-2" />
+              <div className="hidden sm:block h-8 w-px bg-outline-variant mx-1" />
 
               <Link 
                 href={`/seriales?slug=${slug}&search=${searchTerm}&mes=${filterMes}&estatus=${filterEstatus}&estatus_caso=${filterEstatusCaso}&garantia=${filterGarantia}`}
                 target="_blank"
-                className="mt-6 p-2 bg-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center animate-in fade-in zoom-in duration-200"
+                className="p-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center animate-in fade-in zoom-in duration-200 flex-1 sm:flex-initial"
                 title="Ver Seriales Filtrados"
               >
                 <ExternalLink className="w-4 h-4" />
               </Link>
-            </>
+            </div>
           )}
         </div>
 
