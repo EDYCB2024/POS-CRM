@@ -74,13 +74,55 @@ export function TerminalDetailsModal({
   const [alliesList, setAlliesList] = useState<{ name: string, table_name: string }[]>([])
   const [defaultAliados, setDefaultAliados] = useState<any[]>([])
   const [isEditing, setIsEditing] = useState(false)
-  const [selectedTecnico, setSelectedTecnico] = useState('TECNICO 1')
+  const [selectedTecnico, setSelectedTecnico] = useState('Servicio Técnico')
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('nombre, apellido, full_name')
+            .eq('id', user.id)
+            .single()
+          
+          if (data) {
+            if (data.nombre && data.apellido) {
+              setSelectedTecnico(`${data.nombre} ${data.apellido}`)
+            } else if (data.full_name) {
+              setSelectedTecnico(data.full_name)
+            } else {
+              setSelectedTecnico(user.email?.split('@')[0] || 'Servicio Técnico')
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user profile for technician:', err)
+      }
+    }
+    fetchUser()
+  }, [])
   const [accessories, setAccessories] = useState<Record<string, boolean>>({
     caja: false,
     cargador: false,
     bateria: false,
+    sim_card: false,
+    etiqueta_garantia: false,
     tapa: false,
-    base: false
+    forro: false,
+    declaracion_contribuyente: false,
+    rollo_termico: false
+  })
+  const [section4, setSection4] = useState<Record<string, boolean>>({
+    garantia: false,
+    cotizacion: false,
+    irreparable: false,
+    nivel_0: false,
+    nivel_1: false,
+    nivel_2: false,
+    carga_llaves_si: false,
+    carga_llaves_no: false
   })
   const [statuses, setStatuses] = useState<string[]>([])
   const [availableModels, setAvailableModels] = useState<{ linux: string[], android: string[] }>({ linux: [], android: [] })
@@ -120,7 +162,7 @@ export function TerminalDetailsModal({
               .order(nidCol, { ascending: false })
               .limit(1)
               .maybeSingle();
-            
+
             return {
               ...ally,
               maxNid: data ? (parseInt(data[nidCol]) || 0) : 0
@@ -144,7 +186,7 @@ export function TerminalDetailsModal({
         .from('modelos')
         .select('linux, android')
         .order('id');
-      
+
       if (modError) {
         console.error('Error fetching modelos:', modError);
       }
@@ -161,7 +203,7 @@ export function TerminalDetailsModal({
         .from('estatus')
         .select('estatus')
         .order('estatus');
-      
+
       if (statusError) {
         console.error('Error fetching estatus:', statusError);
       }
@@ -193,11 +235,11 @@ export function TerminalDetailsModal({
       async function prefillData() {
         const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
         if (!selectedAllyConfig) return;
-        
+
         const actualTableName = selectedAllyConfig.table_name;
         const columns = TABLE_SCHEMAS[actualTableName] || ["serial", "razon_social", "rif", "modelo", "estatus", "garantia", "fecha", "observaciones"];
         const newFormData: any = {};
-        
+
         columns.forEach(col => {
           newFormData[col] = '';
         });
@@ -219,7 +261,7 @@ export function TerminalDetailsModal({
             .order(nidCol, { ascending: false })
             .limit(1)
             .maybeSingle();
-          
+
           const lastId = data ? parseInt((data as any)[nidCol]) : 0;
           newFormData[nidCol] = isNaN(lastId) ? 1 : lastId + 1;
         }
@@ -229,24 +271,24 @@ export function TerminalDetailsModal({
           d.aliado.toLowerCase() === selectedTable.toLowerCase()
         );
 
-          if (defaultData) {
-            if (newFormData.hasOwnProperty('rif')) newFormData.rif = defaultData.rif === 'PENDIENTE' ? '' : defaultData.rif;
-            if (newFormData.hasOwnProperty('razon_social')) newFormData.razon_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
-            if (newFormData.hasOwnProperty('razn_social')) newFormData.razn_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
-            if (newFormData.hasOwnProperty('aliado')) newFormData.aliado = selectedAllyConfig.name;
-          }
-
-          setFormData(newFormData);
-          setIsEditing(true);
-          setActiveTab('edit');
+        if (defaultData) {
+          if (newFormData.hasOwnProperty('rif')) newFormData.rif = defaultData.rif === 'PENDIENTE' ? '' : defaultData.rif;
+          if (newFormData.hasOwnProperty('razon_social')) newFormData.razon_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+          if (newFormData.hasOwnProperty('razn_social')) newFormData.razn_social = defaultData.razon_social === 'PENDIENTE' ? '' : defaultData.razon_social;
+          if (newFormData.hasOwnProperty('aliado')) newFormData.aliado = selectedAllyConfig.name;
         }
+
+        setFormData(newFormData);
+        setIsEditing(true);
+        setActiveTab('edit');
+      }
 
       prefillData();
     } else if (isNew && !selectedTable) {
       setFormData(null);
     }
   }, [selectedTable, isNew, alliesList, defaultAliados, serial]);
-  
+
   const handleExternalLookup = async (type: 'serial' | 'rif' | 'razon' = 'serial') => {
     let searchValue = '';
     if (type === 'serial') searchValue = formData?.serial || '';
@@ -265,7 +307,7 @@ export function TerminalDetailsModal({
 
       if (actualTableName === 'vatc' || actualTableName === 'banplus' || actualTableName === 'ccr') {
         let query = supabase.from('bd_clientes').select('razon, cliente, procesadora, serial');
-        
+
         if (type === 'serial') query = query.eq('serial', searchValue);
         else if (type === 'rif') query = query.ilike('cliente', `%${searchValue}%`);
         else if (type === 'razon') query = query.ilike('razon', `%${searchValue}%`);
@@ -280,7 +322,7 @@ export function TerminalDetailsModal({
             const selection = data[0];
             const confirmFill = await showConfirm('Múltiples Coincidencias', `Se encontraron ${data.length} coincidencias. ¿Desea cargar los datos de "${selection.razon}"?`, 'primary');
             if (!confirmFill) return;
-            
+
             setFormData((prev: any) => ({
               ...prev,
               razon_social: selection.razon || prev.razon_social,
@@ -461,7 +503,7 @@ export function TerminalDetailsModal({
       if (isNew) {
         const selectedAllyConfig = alliesList.find(a => a.name === selectedTable);
         const actualTableName = selectedAllyConfig?.table_name || selectedTable;
-        
+
         query = supabase.from(actualTableName).insert([{
           ...updateData,
           modificado_crm: true
@@ -497,6 +539,7 @@ export function TerminalDetailsModal({
     localStorage.setItem('print_report_data', JSON.stringify({
       formData,
       accessories,
+      section4,
       selectedTecnico,
       serial: formData.serial || formData.serial_de_remplazo
     }))
@@ -666,9 +709,9 @@ export function TerminalDetailsModal({
                                 key.toLowerCase() === 'nro' ||
                                 key.toLowerCase() === 'n' ||
                                 key.toLowerCase() === 'ne';
-                              const isBlockedField = key.toLowerCase() === 'ingreso' || 
-                                key.toLowerCase() === 'informes' || 
-                                key.toLowerCase() === 'informe' || 
+                              const isBlockedField = key.toLowerCase() === 'ingreso' ||
+                                key.toLowerCase() === 'informes' ||
+                                key.toLowerCase() === 'informe' ||
                                 key.toLowerCase() === 'informe2';
                               let label = key.replace(/_/g, ' ').toUpperCase();
                               if (label === 'N' || label === 'NRO' || label === 'NE') label = 'NID';
@@ -772,8 +815,8 @@ export function TerminalDetailsModal({
                                         {isNew && (key.toLowerCase() === 'serial' || key.toLowerCase() === 'rif' || key.toLowerCase() === 'razon_social' || key.toLowerCase() === 'razn_social') && (
                                           <button
                                             onClick={() => handleExternalLookup(
-                                              key.toLowerCase() === 'serial' ? 'serial' : 
-                                              key.toLowerCase() === 'rif' ? 'rif' : 'razon'
+                                              key.toLowerCase() === 'serial' ? 'serial' :
+                                                key.toLowerCase() === 'rif' ? 'rif' : 'razon'
                                             )}
                                             disabled={loading}
                                             className="bg-primary text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight hover:opacity-90 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
@@ -795,7 +838,7 @@ export function TerminalDetailsModal({
                   </div>
                 </div>
               )
-            }
+              }
             </div>
           ) : activeTab === 'history' ? (
             <div className="p-8">
@@ -922,26 +965,131 @@ export function TerminalDetailsModal({
                       <div className="space-y-4">
                         <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Accesorios Recibidos</h3>
                         <div className="grid grid-cols-2 gap-3 no-print">
-                          {Object.keys(accessories).map(item => (
-                            <label key={item} className="flex items-center gap-3 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={accessories[item]}
-                                onChange={(e) => setAccessories({ ...accessories, [item]: e.target.checked })}
-                                className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
-                              />
-                              <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{item}</span>
-                            </label>
-                          ))}
+                          {Object.keys(accessories).map(item => {
+                            const labels: Record<string, string> = {
+                              caja: "Caja",
+                              cargador: "Cargador",
+                              bateria: "Batería",
+                              sim_card: "Sim Card",
+                              etiqueta_garantia: "Etiqueta de garantía",
+                              tapa: "Tapa de Batería",
+                              forro: "Forro",
+                              declaracion_contribuyente: "Declaración de Cont.",
+                              rollo_termico: "Rollo Térmico"
+                            };
+                            const label = labels[item] || item.toUpperCase();
+                            return (
+                              <label key={item} className="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={accessories[item]}
+                                  onChange={(e) => setAccessories({ ...accessories, [item]: e.target.checked })}
+                                  className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                                />
+                                <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{label}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                         <div className="hidden print:flex flex-wrap gap-x-6 gap-y-2">
-                          {Object.entries(accessories).filter(([_, v]) => v).map(([k]) => (
-                            <div key={k} className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-primary" />
-                              <span className="text-[10px] font-bold text-on-surface uppercase">{k}</span>
-                            </div>
-                          ))}
+                          {Object.entries(accessories).filter(([_, v]) => v).map(([k]) => {
+                            const labels: Record<string, string> = {
+                              caja: "Caja",
+                              cargador: "Cargador",
+                              bateria: "Batería",
+                              sim_card: "Sim Card",
+                              etiqueta_garantia: "Etiqueta de garantía",
+                              tapa: "Tapa de Batería",
+                              forro: "Forro",
+                              declaracion_contribuyente: "Declaración de Cont.",
+                              rollo_termico: "Rollo Térmico"
+                            };
+                            const label = labels[k] || k.toUpperCase();
+                            return (
+                              <div key={k} className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                                <span className="text-[10px] font-bold text-on-surface uppercase">{label}</span>
+                              </div>
+                            );
+                          })}
                           {Object.values(accessories).every(v => !v) && <span className="text-[10px] italic text-outline">Ninguno</span>}
+                        </div>
+
+                        {/* Evaluación Adicional (Sección 4) */}
+                        <div className="pt-6 border-t border-slate-100/80 space-y-4">
+                          <div>
+                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Condición del Equipo (Sec. 4)</h3>
+                            <div className="grid grid-cols-2 gap-3 no-print">
+                              {Object.keys(section4).filter(k => ['garantia', 'cotizacion', 'irreparable'].includes(k)).map(item => {
+                                const labels: Record<string, string> = {
+                                  garantia: "Garantía",
+                                  cotizacion: "Cotización",
+                                  irreparable: "Irreparable"
+                                };
+                                const label = labels[item] || item.toUpperCase();
+                                return (
+                                  <label key={item} className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={section4[item]}
+                                      onChange={(e) => setSection4({ ...section4, [item]: e.target.checked })}
+                                      className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Nivel de Falla</h3>
+                            <div className="grid grid-cols-2 gap-3 no-print">
+                              {Object.keys(section4).filter(k => ['nivel_0', 'nivel_1', 'nivel_2'].includes(k)).map(item => {
+                                const labels: Record<string, string> = {
+                                  nivel_0: "Nivel 0",
+                                  nivel_1: "Nivel 1",
+                                  nivel_2: "Nivel 2"
+                                };
+                                const label = labels[item] || item.toUpperCase();
+                                return (
+                                  <label key={item} className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={section4[item]}
+                                      onChange={(e) => setSection4({ ...section4, [item]: e.target.checked })}
+                                      className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Requiere carga de llaves</h3>
+                            <div className="grid grid-cols-2 gap-3 no-print">
+                              {Object.keys(section4).filter(k => ['carga_llaves_si', 'carga_llaves_no'].includes(k)).map(item => {
+                                const labels: Record<string, string> = {
+                                  carga_llaves_si: "Sí",
+                                  carga_llaves_no: "No"
+                                };
+                                const label = labels[item] || item.toUpperCase();
+                                return (
+                                  <label key={item} className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={section4[item]}
+                                      onChange={(e) => setSection4({ ...section4, [item]: e.target.checked })}
+                                      className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-[10px] font-bold text-outline uppercase group-hover:text-on-surface">{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-4">
@@ -952,7 +1100,7 @@ export function TerminalDetailsModal({
                             onChange={(e) => setSelectedTecnico(e.target.value)}
                             className="w-full bg-slate-50 border border-outline-variant rounded-xl px-4 py-2 text-xs font-bold text-on-surface outline-none"
                           >
-                            {tecnicos.map(t => (
+                            {Array.from(new Set([...tecnicos, selectedTecnico].filter(Boolean))).map(t => (
                               <option key={t} value={t}>{t}</option>
                             ))}
                           </select>

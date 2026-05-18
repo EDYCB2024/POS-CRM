@@ -109,7 +109,7 @@ export default function TerminalsPage() {
           alerts: Math.floor(newTotal * 0.04)
         };
       });
-      
+
       setDeleteConfirmTerminal(null);
       setSuccessModal({
         isOpen: true,
@@ -607,7 +607,7 @@ export default function TerminalsPage() {
               </h4>
               <p className="text-xs font-bold text-slate-700 mt-0.5">{toast.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => setToast(null)}
               className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-lg cursor-pointer"
             >

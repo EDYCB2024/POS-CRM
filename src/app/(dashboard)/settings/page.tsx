@@ -343,17 +343,19 @@ export default function SettingsPage() {
 
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
+        .update({
           nombre: profileData.nombre,
           apellido: profileData.apellido,
           alias: profileData.alias,
           full_name: `${profileData.nombre} ${profileData.apellido}`.trim(),
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('id', user.id);
       
       if (error) throw error;
       showToast('Perfil actualizado con éxito', 'success');
+      // Dispatch a custom event to notify TopBar to refresh
+      window.dispatchEvent(new Event('profile-updated'));
     } catch (err) {
       console.error('Error updating profile:', err);
       showToast('Error al actualizar el perfil', 'error');
@@ -431,17 +433,21 @@ export default function SettingsPage() {
     loadCurrentUser();
   }, []);
 
-  // Reset tab to profile if a non-admin tries to access admin tabs
+  // Reset tab to profile if unauthorized
   useEffect(() => {
-    if (!loadingRole && currentUserRole !== 'admin' && ['users', 'allies', 'activity'].includes(activeTab)) {
-      setActiveTab('profile');
+    if (!loadingRole) {
+      if (currentUserRole !== 'admin' && currentUserRole !== 'editor' && ['users', 'allies', 'activity'].includes(activeTab)) {
+        setActiveTab('profile');
+      } else if (currentUserRole === 'editor' && activeTab === 'users') {
+        setActiveTab('profile');
+      }
     }
   }, [activeTab, currentUserRole, loadingRole]);
 
   useEffect(() => {
-    if (activeTab === 'activity' && currentUserRole === 'admin') {
+    if (activeTab === 'activity' && (currentUserRole === 'admin' || currentUserRole === 'editor')) {
       fetchLogs();
-    } else if (activeTab === 'allies' && currentUserRole === 'admin') {
+    } else if (activeTab === 'allies' && (currentUserRole === 'admin' || currentUserRole === 'editor')) {
       fetchAllies();
     } else if (activeTab === 'users' && currentUserRole === 'admin') {
       fetchUsers();
@@ -451,8 +457,8 @@ export default function SettingsPage() {
   }, [activeTab, currentUserRole]);
 
   const handleUpdateAllyName = async (id: string) => {
-    if (currentUserRole !== 'admin') {
-      showToast('Solo los administradores pueden gestionar aliados.', 'error');
+    if (currentUserRole !== 'admin' && currentUserRole !== 'editor') {
+      showToast('Solo los administradores y editores pueden gestionar aliados.', 'error');
       return;
     }
     try {
@@ -472,8 +478,8 @@ export default function SettingsPage() {
   };
 
   const handleAddAlly = async () => {
-    if (currentUserRole !== 'admin') {
-      showToast('Solo los administradores pueden gestionar aliados.', 'error');
+    if (currentUserRole !== 'admin' && currentUserRole !== 'editor') {
+      showToast('Solo los administradores y editores pueden gestionar aliados.', 'error');
       return;
     }
     if (!newAlly.name || !newAlly.table_name) return;
@@ -530,8 +536,8 @@ export default function SettingsPage() {
               [
                 { id: 'profile', label: 'Mi Perfil', icon: User },
                 { id: 'security', label: 'Seguridad', icon: Shield },
-                ...(currentUserRole === 'admin' ? [
-                  { id: 'users', label: 'Gestión de Usuarios', icon: UsersIcon },
+                ...(currentUserRole === 'admin' || currentUserRole === 'editor' ? [
+                  ...(currentUserRole === 'admin' ? [{ id: 'users', label: 'Gestión de Usuarios', icon: UsersIcon }] : []),
                   { id: 'allies', label: 'Gestión de Aliados', icon: Building2 },
                   { id: 'activity', label: 'Activity Log', icon: History }
                 ] : [])
@@ -555,7 +561,7 @@ export default function SettingsPage() {
 
           {/* Content Area */}
           <div className="lg:col-span-9 bg-white border border-outline-variant rounded-[32px] overflow-hidden shadow-sm min-h-[600px]">
-            {activeTab === 'activity' && currentUserRole === 'admin' && (
+            {activeTab === 'activity' && (currentUserRole === 'admin' || currentUserRole === 'editor') && (
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -625,7 +631,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {activeTab === 'allies' && currentUserRole === 'admin' && (
+            {activeTab === 'allies' && (currentUserRole === 'admin' || currentUserRole === 'editor') && (
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-outline-variant bg-slate-50/50 flex justify-between items-center">
                   <div className="flex items-center gap-3">

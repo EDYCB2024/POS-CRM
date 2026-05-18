@@ -54,7 +54,6 @@ const inventory = [
 const helpCenter = [
   { name: 'Guías de Usuario', href: '/help/guides', icon: FileText },
   { name: 'FAQ', href: '/help/faq', icon: HelpCircle },
-  { name: 'Soporte Técnico', href: '/support', icon: MessageSquare },
 ]
 
 // Module-level caches removed for data consistency
@@ -107,28 +106,38 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300"
           onClick={toggle}
         />
       )}
       
       <div
         className={cn(
-          "fixed left-0 top-0 h-screen z-50 transition-all duration-300 ease-in-out flex",
-          isOpen ? "translate-x-0" : "-translate-x-80"
+          "fixed left-0 top-0 h-screen z-50 transition-all duration-300 ease-in-out flex w-72 lg:w-80",
+          isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
       {/* Sidebar Content Container */}
-      <aside className="w-80 h-full bg-surface-container-lowest border-r border-outline-variant flex flex-col p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-outline-variant scrollbar-track-transparent relative shadow-2xl shadow-black/5">
+      <aside className="w-full h-full bg-surface-container-lowest border-r border-outline-variant flex flex-col p-6 overflow-y-auto custom-scrollbar relative shadow-2xl shadow-black/5">
         {/* Logo Section */}
-        <div className="flex items-center gap-3 px-2 mb-10">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Smartphone className="text-white w-6 h-6" />
+        <div className="flex items-center justify-between mb-6 px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+              <Smartphone className="text-white w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-h3 font-black tracking-tighter text-primary uppercase leading-tight">POS CRM</h2>
+              <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">Management v1.0</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-h3 font-black tracking-tighter text-primary uppercase leading-tight">POS CRM</h2>
-            <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">Management v1.0</p>
-          </div>
+          {/* Close button for mobile */}
+          <button 
+            onClick={toggle}
+            className="p-2 -mr-2 text-on-surface-variant hover:bg-surface-container rounded-lg lg:hidden transition-colors"
+            title="Cerrar menú"
+          >
+            <ChevronLeft className="w-5 h-5 text-primary" />
+          </button>
         </div>
 
         <nav className="flex-1 space-y-1">
@@ -140,7 +149,7 @@ export function Sidebar() {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group",
+                  "flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all group",
                   isActive
                     ? "bg-primary text-white shadow-lg shadow-primary/20"
                     : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -153,14 +162,14 @@ export function Sidebar() {
           })}
 
           {/* Aliados Section */}
-          <div className="pt-4 mt-2">
+          <div className="pt-2 mt-1">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Network</div>
             
             {/* Add Equipment Link */}
             <Link
               href="/terminals/new"
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1 border border-transparent",
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all group mb-1 border border-transparent",
                 pathname === '/terminals/new'
                   ? "bg-primary text-white shadow-lg shadow-primary/20 border-primary"
                   : "text-secondary hover:text-on-surface hover:bg-white hover:border-outline-variant/30"
@@ -179,7 +188,7 @@ export function Sidebar() {
             <Link
               href="/terminals"
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1",
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all group mb-1",
                 pathname === '/terminals'
                   ? "bg-primary text-white shadow-lg shadow-primary/20"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -192,7 +201,7 @@ export function Sidebar() {
             <button
               onClick={() => setIsAliadosOpen(!isAliadosOpen)}
               className={cn(
-                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                "w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-medium transition-all group",
                 isAliadosOpen
                   ? "bg-secondary-container/30 text-primary border border-primary/10"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -251,12 +260,12 @@ export function Sidebar() {
           </div>
 
           {/* Almacén y Despacho Section */}
-          <div className="pt-4 mt-2">
+          <div className="pt-2 mt-1">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Almacén y Despacho</div>
             <Link
               href={"/almacen/recepcion" as any}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group mb-1",
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all group mb-1",
                 pathname === '/almacen/recepcion'
                   ? "bg-primary text-white shadow-lg shadow-primary/20"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -268,12 +277,12 @@ export function Sidebar() {
           </div>
 
           {/* Inventario Section */}
-          <div className="pt-4 mt-2">
+          <div className="pt-2 mt-1">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Logistics</div>
             <button
               onClick={() => setIsInventoryOpen(!isInventoryOpen)}
               className={cn(
-                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                "w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-medium transition-all group",
                 isInventoryOpen
                   ? "bg-secondary-container/30 text-primary border border-primary/10"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -303,12 +312,12 @@ export function Sidebar() {
           </div>
 
           {/* Data Center Section */}
-          <div className="pt-4 mt-2">
+          <div className="pt-2 mt-1">
             <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Systems</div>
             <button
               onClick={() => setIsDataCenterOpen(!isDataCenterOpen)}
               className={cn(
-                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
+                "w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-medium transition-all group",
                 isDataCenterOpen
                   ? "bg-secondary-container/30 text-primary border border-primary/10"
                   : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
@@ -337,40 +346,7 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* Help Center Section */}
-          <div className="pt-4 mt-2">
-            <div className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-[0.2em] px-4 mb-2">Support</div>
-            <button
-              onClick={() => setIsHelpOpen(!isHelpOpen)}
-              className={cn(
-                "w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all group",
-                isHelpOpen
-                  ? "bg-secondary-container/30 text-primary border border-primary/10"
-                  : "text-secondary hover:text-on-surface hover:bg-white border border-transparent hover:border-outline-variant/30"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <LifeBuoy className={cn("w-5 h-5", isHelpOpen ? "text-primary" : "text-primary/70 group-hover:text-primary")} />
-                <span>Help Center</span>
-              </div>
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isHelpOpen ? "rotate-180" : "")} />
-            </button>
 
-            {isHelpOpen && (
-              <div className="mt-1 space-y-0.5 pl-4 animate-in slide-in-from-top-2 duration-300">
-                {helpCenter.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:text-primary hover:bg-primary/5 transition-all rounded-lg"
-                  >
-                    <item.icon className="w-3.5 h-3.5 text-on-surface-variant/40" />
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
         </nav>
 
         {/* Secondary Navigation */}

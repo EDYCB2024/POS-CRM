@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="100%" height="100%">
+  <defs>
+    <!-- Sphere background gradient -->
+    <radialGradient id="sphereGrad" cx="50%" cy="30%" r="65%" fx="35%" fy="20%">
+      <stop offset="0%" stop-color="#FFA834" />
+      <stop offset="60%" stop-color="#FF4B00" />
+      <stop offset="100%" stop-color="#C81E00" />
+    </radialGradient>
+
+    <!-- Chevron interior orange glow -->
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF0D0" />
+      <stop offset="50%" stop-color="#FF9000" />
+      <stop offset="100%" stop-color="#E03000" />
+    </linearGradient>
+
+    <!-- Drop shadow for the chevrons to give 3D depth -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#801000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Base Circle (Sphere) -->
+  <circle cx="200" cy="190" r="170" fill="url(#sphereGrad)" />
+
+  <!-- 3D Pyramid Chevron Layers -->
+  <!-- Layer 7 (Top tiny point) -->
+  <path d="M 200,60 L 216,73 Q 200,81 184,73 Z" fill="#FFFFFF" filter="url(#shadow)" />
+  
+  <!-- Layer 6 -->
+  <path d="M 200,80 L 232,98 Q 200,109 168,98 Z" fill="#FFFFFF" filter="url(#shadow)" />
+  
+  <!-- Layer 5 -->
+  <path d="M 200,105 L 248,127 Q 200,141 152,127 Z" fill="#FFFFFF" filter="url(#shadow)" />
+  
+  <!-- Layer 4 -->
+  <path d="M 200,135 L 268,160 Q 200,178 132,160 Z" fill="#FFFFFF" filter="url(#shadow)" />
+  
+  <!-- Layer 3 -->
+  <path d="M 200,170 L 290,200 Q 200,222 110,200 Z" fill="#FFFFFF" filter="url(#shadow)" />
+  
+  <!-- Layer 2 -->
+  <path d="M 200,210 L 314,245 Q 200,272 86,245 Z" fill="#FFFFFF" filter="url(#shadow)" />
+
+  <!-- Layer 1 (Bottom largest chevron) -->
+  <path d="M 200,255 L 340,298 Q 200,332 60,298 Z" fill="#FFFFFF" filter="url(#shadow)" />
+
+  <!-- Two outer circular swooshes hugging the sphere -->
+  <path d="M 68,140 C 44,180 44,240 85,285 C 72,250 72,185 92,150 Z" fill="#FFFFFF" opacity="0.8" />
+  <path d="M 332,140 C 356,180 356,240 315,285 C 328,250 328,185 308,150 Z" fill="#FFFFFF" opacity="0.8" />
+
+  <!-- Brand Text Section with safe padding to prevent bottom clipping -->
+  <g id="brand-text">
+    <!-- "VAT & C" -->
+    <text x="200" y="415" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="52" text-anchor="middle" letter-spacing="1">
+      <tspan fill="#015289">VAT </tspan>
+      <tspan fill="#FF7800">&amp;</tspan>
+      <tspan fill="#015289"> C</tspan>
+    </text>
+    
+    <!-- Subtitle "VA TECHNOLOGY & COMMUNICATION" -->
+    <text x="200" y="448" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="12.5" fill="#5F7D95" text-anchor="middle" letter-spacing="3">
+      VA TECHNOLOGY &amp; COMMUNICATION
+    </text>
+  </g>
+</svg>

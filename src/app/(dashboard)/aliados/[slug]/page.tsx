@@ -29,7 +29,8 @@ import {
   Check,
   Trash2,
   X,
-  MoreHorizontal
+  MoreHorizontal,
+  Search
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { FilterDropdown } from "@/components/ui/FilterDropdown"
@@ -54,6 +55,7 @@ export default function AllyPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSerial, setSelectedSerial] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedRow, setSelectedRow] = useState<any>(null)
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
@@ -481,15 +483,18 @@ export default function AllyPage() {
 
         {/* Filtros */}
         <div className="mb-4 bg-white p-4 rounded-xl border border-outline-variant flex flex-wrap gap-4 items-end shadow-sm">
-          <div className="flex flex-col gap-1 w-full sm:w-auto flex-1 min-w-[200px]">
+          <div className="flex flex-col gap-1 w-full sm:w-64">
             <label className="text-[10px] font-black uppercase text-on-surface-variant ml-1">Buscar</label>
-            <input 
-              type="text" 
-              placeholder="Serial, Cliente, Lote..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-outline-variant rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-            />
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-outline" />
+              <input 
+                type="text" 
+                placeholder="Serial, Cliente, Lote..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 bg-white border border-outline-variant rounded-lg text-xs font-bold text-primary placeholder:text-outline/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1 w-full sm:w-auto">
@@ -630,6 +635,21 @@ export default function AllyPage() {
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-primary border-b border-primary/20">
+                    <th className="px-3 py-2 text-[10px] text-white font-black w-[45px] border-r border-white/10 text-center relative">
+                      <input 
+                        type="checkbox" 
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const allIds = data.map(row => row.id).filter(Boolean)
+                            setSelectedIds(allIds)
+                          } else {
+                            setSelectedIds([])
+                          }
+                        }}
+                        checked={data.length > 0 && selectedIds.length === data.map(row => row.id).filter(Boolean).length}
+                        className="w-3.5 h-3.5 rounded border-white/30 text-primary bg-primary/20 focus:ring-0 accent-white cursor-pointer"
+                      />
+                    </th>
                     {headers.map(header => {
                       const isNumber = header.toLowerCase() === 'n' || header.toLowerCase() === 'nro'
                       return (
@@ -651,43 +671,60 @@ export default function AllyPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
-                  {data.length > 0 ? data.map((row, idx) => (
-                    <tr 
-                      key={idx} 
-                      onClick={() => {
-                        setSelectedSerial(row.serial || row.serial_de_remplazo)
-                        setSelectedRow(row)
-                        setIsModalOpen(true)
-                      }}
-                      className="group even:bg-slate-100 transition-colors cursor-pointer hover:bg-slate-200/50 relative"
-                    >
-                      {headers.map(header => (
-                        <td key={header} className="px-3 py-1.5 border-r border-outline-variant/10 last:border-r-0">
-                          {renderCellContent(header, row[header], row)}
+                  {data.length > 0 ? data.map((row, idx) => {
+                    const rowSerial = row.serial || row.serial_de_remplazo;
+                    return (
+                      <tr 
+                        key={idx} 
+                        onClick={() => {
+                          setSelectedSerial(rowSerial)
+                          setSelectedRow(row)
+                          setIsModalOpen(true)
+                        }}
+                        className="group even:bg-slate-100 transition-colors cursor-pointer hover:bg-slate-200/50 relative"
+                      >
+                        <td className="px-3 py-1.5 border-r border-outline-variant/10 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedIds.includes(row.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(prev => [...prev, row.id])
+                              } else {
+                                setSelectedIds(prev => prev.filter(id => id !== row.id))
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+                          />
                         </td>
-                      ))}
-                      <td className="px-3 py-1.5 text-center sticky right-0 bg-white group-even:bg-slate-100 group-hover:bg-[#e2e8f0] transition-colors border-l border-[#cbd5e1]/50 z-10 relative" onClick={(e) => e.stopPropagation()}>
-                        <div className="absolute top-0 bottom-0 -left-[12px] w-[12px] bg-gradient-to-r from-transparent to-black/[0.06] pointer-events-none" />
-                        <button 
-                          onClick={(e) => {
-                            if (openMenuId === row.id) {
-                              setOpenMenuId(null);
-                              setMenuPosition(null);
-                            } else {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setOpenMenuId(row.id);
-                              setMenuPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX - 140 });
-                            }
-                          }}
-                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-all active:scale-95"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  )) : (
+                        {headers.map(header => (
+                          <td key={header} className="px-3 py-1.5 border-r border-outline-variant/10 last:border-r-0">
+                            {renderCellContent(header, row[header], row)}
+                          </td>
+                        ))}
+                        <td className="px-3 py-1.5 text-center sticky right-0 bg-white group-even:bg-slate-100 group-hover:bg-[#e2e8f0] transition-colors border-l border-[#cbd5e1]/50 z-10 relative" onClick={(e) => e.stopPropagation()}>
+                          <div className="absolute top-0 bottom-0 -left-[12px] w-[12px] bg-gradient-to-r from-transparent to-black/[0.06] pointer-events-none" />
+                          <button 
+                            onClick={(e) => {
+                              if (openMenuId === row.id) {
+                                setOpenMenuId(null);
+                                setMenuPosition(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setOpenMenuId(row.id);
+                                setMenuPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX - 140 });
+                              }
+                            }}
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-all active:scale-95"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  }) : (
                     <tr>
-                      <td colSpan={headers.length + 1} className="px-lg py-20 text-center">
+                      <td colSpan={headers.length + 2} className="px-lg py-20 text-center">
                         <div className="flex flex-col items-center gap-4">
                           <div className="p-4 bg-surface-container-low rounded-2xl">
                             <FileSpreadsheet className="w-10 h-10 text-outline" />
@@ -706,6 +743,32 @@ export default function AllyPage() {
           </div>
         )}
       </section>
+
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white/95 border border-outline-variant shadow-2xl rounded-2xl px-6 py-4 flex items-center gap-6 animate-in slide-in-from-bottom duration-300 backdrop-blur-md">
+          <div className="flex flex-col">
+            <span className="text-xs font-black text-primary uppercase tracking-tight">{selectedIds.length} Ingresos Seleccionados</span>
+            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Gestión de seriales masiva</span>
+          </div>
+          <div className="h-8 w-px bg-outline-variant/50" />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-4 py-2 border border-outline-variant hover:bg-slate-50 text-xs font-bold rounded-xl transition-all"
+            >
+              Limpiar
+            </button>
+            <Link
+              href={`/seriales/gestion?slug=${slug}&ids=${selectedIds.join(',')}`}
+              target="_blank"
+              className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-all flex items-center gap-1.5"
+            >
+              Gestionar en Lote
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       <TerminalDetailsModal 
         isOpen={isModalOpen}

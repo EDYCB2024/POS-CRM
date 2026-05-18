@@ -11,7 +11,14 @@ interface TopBarProps {
 
 export function TopBar({ title }: TopBarProps) {
   const { toggle } = useSidebar()
-  const [profile, setProfile] = useState<{ full_name: string | null; role: string | null; email: string | null } | null>(null)
+  const [profile, setProfile] = useState<{ 
+    full_name: string | null; 
+    role: string | null; 
+    email: string | null;
+    nombre: string | null;
+    apellido: string | null;
+    alias: string | null;
+  } | null>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -36,17 +43,22 @@ export function TopBar({ title }: TopBarProps) {
               .eq('id', user.id)
           }
 
-          const name = data.alias || data.nombre || data.full_name || user.email?.split('@')[0] || 'Usuario'
           setProfile({
-            full_name: name,
+            full_name: data.full_name || user.email?.split('@')[0] || 'Usuario',
             role: isSuperUser ? 'admin' : (data.role || 'editor'),
-            email: user.email || ''
+            email: user.email || '',
+            nombre: data.nombre || '',
+            apellido: data.apellido || '',
+            alias: data.alias || ''
           })
         } else {
           setProfile({
             full_name: user.email?.split('@')[0] || 'Usuario',
             role: isSuperUser ? 'admin' : 'editor',
-            email: user.email || ''
+            email: user.email || '',
+            nombre: '',
+            apellido: '',
+            alias: ''
           })
         }
       } catch (err) {
@@ -54,6 +66,12 @@ export function TopBar({ title }: TopBarProps) {
       }
     }
     fetchProfile()
+
+    // Add profile update listener
+    window.addEventListener('profile-updated', fetchProfile)
+    return () => {
+      window.removeEventListener('profile-updated', fetchProfile)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -77,8 +95,12 @@ export function TopBar({ title }: TopBarProps) {
     }
   }
 
-  const getInitials = (name: string | null) => {
-    if (!name) return 'U'
+  const getInitials = (profile: any) => {
+    if (!profile) return 'U'
+    if (profile.nombre && profile.apellido) {
+      return (profile.nombre.charAt(0) + profile.apellido.charAt(0)).toUpperCase()
+    }
+    const name = profile.full_name || ''
     const parts = name.trim().split(/\s+/)
     if (parts.length >= 2) {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase()
@@ -116,11 +138,15 @@ export function TopBar({ title }: TopBarProps) {
             ) : (
               <>
                 <div className="text-right hidden md:block">
-                  <p className="text-[10px] font-black uppercase text-primary leading-none">{profile.full_name}</p>
-                  <p className="text-[9px] font-bold text-outline uppercase tracking-widest mt-1">{getRoleLabel(profile.role)}</p>
+                  <p className="text-[10px] font-black uppercase text-primary leading-none">
+                    {profile.nombre && profile.apellido ? `${profile.nombre} ${profile.apellido}` : (profile.full_name || 'Usuario')}
+                  </p>
+                  <p className="text-[9px] font-bold text-outline uppercase tracking-widest mt-1">
+                    {profile.alias || getRoleLabel(profile.role)}
+                  </p>
                 </div>
                 <div className="h-9 w-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-black text-xs shadow-inner uppercase">
-                  {getInitials(profile.full_name)}
+                  {getInitials(profile)}
                 </div>
               </>
             )}
